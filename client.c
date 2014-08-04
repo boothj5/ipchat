@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -10,16 +11,18 @@ int
 main(int argc, char *argv[])
 {
     char *hostname;
+    int port;
     char ip[100];
     struct hostent *he;
     struct in_addr **addr_list;
 
-    if (argc != 2) {
-        printf("Please enter an hostname.\n");
+    if (argc != 3) {
+        printf("Please enter a hostname and port.\n");
         return 0;
     }
 
     hostname = argv[1];
+    port = atoi(argv[2]);
 
     if ((he = gethostbyname(hostname)) == NULL) {
         switch(h_errno)
@@ -62,7 +65,7 @@ main(int argc, char *argv[])
     struct sockaddr_in server;
     server.sin_addr.s_addr = inet_addr(ip);
     server.sin_family = AF_INET; // ipv4
-    server.sin_port = htons(80); // host to network byte order
+    server.sin_port = htons(port); // host to network byte order
 
     if (connect(socket_desc, (struct sockaddr*)&server, sizeof(server)) < 0) {
         puts("Failed to connect.");
@@ -71,23 +74,22 @@ main(int argc, char *argv[])
 
     puts("Connected successfully.");
 
-    char message[100];
-    sprintf(message,"GET / HTTP/1.1\r\nHost: %s\r\n\r\n", hostname);
-    if (send(socket_desc, message, strlen(message), 0) < 0) {
-        printf("Failed to send request: %s\n", message);
-        return 1;
+    while (1) {
+        char *input = malloc(sizeof(char) * 1000);
+        scanf("%s", input);
+
+        write(socket_desc, input, strlen(input));
+        free(input);
+
+        char *server_reply = malloc(sizeof(char) * 1000);
+        if (recv(socket_desc, server_reply, 1000, 0) < 0) {
+            puts("Receive failed.");
+            return 1;
+        }
+
+        printf("%s\n", server_reply);
+        free(server_reply);
     }
-
-    printf("Request sent: \n%s\n", message);
-
-    char server_reply[1000];
-    if (recv(socket_desc, server_reply, 1000, 0) < 0) {
-        puts("Receive failed.");
-        return 1;
-    }
-
-    puts("Reply:");
-    puts(server_reply);
 
     close(socket_desc);
 

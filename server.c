@@ -19,10 +19,6 @@ void *connection_handler(void *data)
      
     printf("Connection handler assigned for ip: %s, port: %d.\n", client->ip, client->port);
 
-    char message[100];
-    sprintf(message, "Echo server, enter something...\n");
-    write(client->sock, message, strlen(message));
-
     char client_message[2000];
     while((read_size = recv(client->sock, client_message, 2000 , 0)) > 0 ) {
         write(client->sock, client_message, read_size);
