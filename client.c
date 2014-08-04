@@ -76,7 +76,10 @@ main(int argc, char *argv[])
 
     while (1) {
         char *input = malloc(sizeof(char) * 1000);
-        scanf("%s", input);
+        fgets(input, 1000, stdin);
+
+        if ((strlen(input) > 0) && (input[strlen(input) - 1] == '\n'))
+            input[strlen (input) - 1] = '\0';
 
         write(socket_desc, input, strlen(input));
         free(input);
