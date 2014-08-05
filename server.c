@@ -19,9 +19,14 @@ void *connection_handler(void *data)
      
     printf("Connection handler assigned for ip: %s, port: %d.\n", client->ip, client->port);
 
-    char client_message[2000];
+    char *client_message = malloc(sizeof(char) * 2000);
     while((read_size = recv(client->sock, client_message, 2000 , 0)) > 0 ) {
+        int act_size = strlen(client_message);
+        printf("Received message from: %s:%d: \"%s\" (read_size %d, strlen %d).\n",
+            client->ip, client->port, client_message, read_size, act_size);
         write(client->sock, client_message, read_size);
+        free(client_message);
+        client_message = malloc(sizeof(char) * 2000);
     }
      
     if(read_size == 0) {

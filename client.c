@@ -84,12 +84,14 @@ main(int argc, char *argv[])
         write(socket_desc, input, strlen(input));
         free(input);
 
+        int read_size;
         char *server_reply = malloc(sizeof(char) * 1000);
-        if (recv(socket_desc, server_reply, 1000, 0) < 0) {
+        if ((read_size = recv(socket_desc, server_reply, 1000, 0)) < 0) {
             puts("Receive failed.");
             return 1;
         }
 
+        server_reply[read_size] = '\0';
         printf("%s\n", server_reply);
         free(server_reply);
     }
