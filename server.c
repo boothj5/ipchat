@@ -28,6 +28,7 @@ void* connection_handler(void *data)
         // error
         if (read_size == -1) {
             perror("Error receiving on connection");
+            free(client->ip);
             free(client);
             free(client_message);
             break;
@@ -35,6 +36,7 @@ void* connection_handler(void *data)
         // client closed
         } else if (read_size == 0) {
             printf("%s:%d - Client disconnected.\n", client->ip, client->port);
+            free(client->ip);
             free(client);
             free(client_message);
             break;
@@ -94,7 +96,7 @@ int main(int argc , char *argv[])
         }
 
         ThreadData *client = malloc(sizeof(ThreadData));
-        client->ip = inet_ntoa(client_addr.sin_addr);
+        client->ip = strdup(inet_ntoa(client_addr.sin_addr));
         client->port = ntohs(client_addr.sin_port);
         client->sock = client_socket;
 
