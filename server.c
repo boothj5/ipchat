@@ -48,7 +48,7 @@ void* connection_handler(void *data)
             incoming[read_size] = '\0';
             
             printf("%s:%d - Received: %s\n", client->ip, client->port, incoming);
-	    fflush(stdout);
+            fflush(stdout);
             write(client->sock, client_message, read_size);
             free(client_message);
         }
