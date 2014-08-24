@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <netdb.h>
 #include <ncurses.h>
+#include <fcntl.h>
 
 int
 main(int argc, char *argv[])
@@ -58,6 +59,7 @@ main(int argc, char *argv[])
     scrollok(outw, TRUE);
     WINDOW *inpw = newwin(rows/2-1, cols, rows/2, 0);
     scrollok(inpw, TRUE);
+    wtimeout(inpw, 20);
 
     wprintw(outw, "Host %s resolved to:\n", hostname);
     wrefresh(outw);
@@ -91,34 +93,37 @@ main(int argc, char *argv[])
             connected = 1;
         }
 
+        char input[1000];
+        char len = 0;
         while (1) {
-            char *input = malloc(sizeof(char) * 1000);
-            wgetstr(inpw, input);
-
-            if ((strlen(input) > 0) && (input[strlen(input) - 1] == '\n'))
-                input[strlen (input) - 1] = '\0';
-
-            if (strncmp(input, "/quit", 5) == 0) {
-                break;
-            } else if (strlen(input) > 0) {
-                if (connected == 1) {
-                    write(socket_desc, input, strlen(input));
-                    free(input);
-
-                    int read_size;
-                    char *server_reply = malloc(sizeof(char) * 1000);
-                    if ((read_size = recv(socket_desc, server_reply, 1000, 0)) < 0) {
-                        wprintw(outw, "Receive failed.\n");
-                        wrefresh(outw);
-                        return 1;
+            int ch = wgetch(inpw);
+            if (ch != ERR) {
+                if (ch == '\n') {
+                    input[len] = '\0';
+                    if (strncmp(input, "/quit", 5) == 0) {
+                        break;
+                    } else if (strlen(input) > 0) {
+                        if (connected == 1) {
+                            write(socket_desc, input, strlen(input));
+                        }
                     }
-
-                    server_reply[read_size] = '\0';
-                    wprintw(outw, "%s\n", server_reply);
-                    wrefresh(outw);
-                    free(server_reply);
+                    wclear(inpw);
+                    len = 0;
+                } else {
+                    input[len++] = ch;
                 }
             }
+
+            int read_size;
+            char *server_reply = malloc(sizeof(char) * 1000);
+            read_size = recv(socket_desc, server_reply, 1000, MSG_DONTWAIT);
+            if (read_size > 0) {
+                server_reply[read_size] = '\0';
+                wprintw(outw, "%s\n", server_reply);
+                wrefresh(outw);
+            }
+            free(server_reply);
+            wrefresh(inpw);
         }
     }
 
