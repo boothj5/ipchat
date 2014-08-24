@@ -1,0 +1,2 @@
+./buildserver.sh
+./buildclient.sh

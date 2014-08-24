@@ -6,12 +6,15 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <errno.h>
+#include <glib.h>
 
 typedef struct thread_client_t {
     char *ip;
     int port;
     int sock;
 } ThreadData;
+
+GSList *clients;
 
 void* connection_handler(void *data)
 {
@@ -49,7 +52,13 @@ void* connection_handler(void *data)
             
             printf("%s:%d - Received: %s\n", client->ip, client->port, incoming);
             fflush(stdout);
-            write(client->sock, client_message, read_size);
+
+            GSList *curr = clients;
+            while (curr != NULL) {
+                ThreadData *participant = curr->data;
+                write(participant->sock, client_message, read_size);
+                curr = g_slist_next(curr);
+            }
             free(client_message);
         }
     }
@@ -105,6 +114,8 @@ int main(int argc , char *argv[])
         client->ip = strdup(inet_ntoa(client_addr.sin_addr));
         client->port = ntohs(client_addr.sin_port);
         client->sock = client_socket;
+
+        clients = g_slist_append(clients, client);
 
         pthread_t sniffer_thread;
         ret = pthread_create(&sniffer_thread, NULL, connection_handler, (void *)client);
