@@ -6,7 +6,7 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <netdb.h>
-#include <ncurses.h>
+#include <ncursesw/ncurses.h>
 #include <fcntl.h>
 
 int
