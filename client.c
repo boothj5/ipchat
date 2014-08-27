@@ -20,35 +20,13 @@ main(int argc, char *argv[])
     int connected = 0;
 
     if (argc != 2) {
-        printf("Please enter at least a hostname.\n");
+        printf("Please enter at least a hostname or ip address.\n");
         return 0;
     }
 
     hostname = argv[1];
     if (argc == 3) {
         port = atoi(argv[2]);
-    }
-
-    if ((he = gethostbyname(hostname)) == NULL) {
-        switch(h_errno)
-        {
-            case HOST_NOT_FOUND:
-                printf("%s: Unknown host\n", hostname);
-                break;
-            case NO_ADDRESS:
-                printf("%s: No ip address found\n", hostname);
-                break;
-            case NO_RECOVERY:
-                printf("%s: Non recoverable name server request\n", hostname);
-                break;
-            case TRY_AGAIN:
-                printf("%s: Temporary error occurred at name server\n", hostname);
-                break;
-            default:
-                printf("%s: Unknown error occurred getting ip address\n", hostname);
-                break;
-        }
-        return 1;
     }
 
     initscr();
@@ -62,16 +40,47 @@ main(int argc, char *argv[])
     WINDOW *inpw = newwin(rows/2-1, cols, rows/2, 0);
     scrollok(inpw, TRUE);
     wtimeout(inpw, 20);
+   
+    struct sockaddr_in sa;
+    int result = inet_pton(AF_INET, hostname, &(sa.sin_addr));
 
-    wprintw(outw, "Host %s resolved to:\n", hostname);
-    wrefresh(outw);
-    addr_list = (struct in_addr**)he->h_addr_list;
-    int i;
-    for (i = 0; addr_list[i] != NULL; i++) {
-        wprintw(outw, "  %s\n", inet_ntoa(*addr_list[i]));
+    if (result != 0) {
+        strncpy(ip, hostname, strlen(hostname));
+	ip[strlen(hostname)] = '\0';
+	wprintw(outw, "Connecting to %s\n", ip);
+    } else {
+        if ((he = gethostbyname(hostname)) == NULL) {
+            switch(h_errno)
+            {
+	        case HOST_NOT_FOUND:
+	            wprintw(outw, "%s: Unknown host\n", hostname);
+	            break;
+	        case NO_ADDRESS:
+                    wprintw(outw, "%s: No ip address found\n", hostname);
+                    break;
+                case NO_RECOVERY:
+                    wprintw(outw, "%s: Non recoverable name server request\n", hostname);
+                    break;
+                case TRY_AGAIN:
+                    wprintw(outw, "%s: Temporary error occurred at name server\n", hostname);
+                    break;
+                default:
+                    wprintw(outw, "%s: Unknown error occurred getting ip address\n", hostname);
+                    break;
+            }
+            return 1;
+        }
+
+        wprintw(outw, "Host %s resolved to:\n", hostname);
         wrefresh(outw);
-        if (i == 0) {
-            strcpy(ip, inet_ntoa(*addr_list[i]));
+        addr_list = (struct in_addr**)he->h_addr_list;
+        int i;
+        for (i = 0; addr_list[i] != NULL; i++) {
+            wprintw(outw, "  %s\n", inet_ntoa(*addr_list[i]));
+            wrefresh(outw);
+            if (i == 0) {
+                strcpy(ip, inet_ntoa(*addr_list[i]));
+            }
         }
     }
 

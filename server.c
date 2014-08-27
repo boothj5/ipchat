@@ -80,6 +80,7 @@ int main(int argc , char *argv[])
     socket_desc = socket(AF_INET, SOCK_STREAM, IPPROTO_IP); // ipv4, tcp, ip
     if (socket_desc == -1) {
         perror("Could not create socket");
+	return 0;
     }
      
     server_addr.sin_family = AF_INET;
@@ -90,12 +91,14 @@ int main(int argc , char *argv[])
     ret = bind(socket_desc, (struct sockaddr *)&server_addr, sizeof(server_addr));
     if (ret == -1) {
         perror("Bind failed");
+	return 0;
     }
 
     errno = 0;
     ret = listen(socket_desc, 20);
     if (ret == -1) {
         perror("Listen failed");
+	return 0;
     }
     puts("Waiting for incoming connections...");
 
