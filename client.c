@@ -13,19 +13,21 @@ int
 main(int argc, char *argv[])
 {
     char *hostname;
-    int port;
+    int port = 6660;
     char ip[100];
     struct hostent *he;
     struct in_addr **addr_list;
     int connected = 0;
 
-    if (argc != 3) {
-        printf("Please enter a hostname and port.\n");
+    if (argc != 2) {
+        printf("Please enter at least a hostname.\n");
         return 0;
     }
 
     hostname = argv[1];
-    port = atoi(argv[2]);
+    if (argc == 3) {
+        port = atoi(argv[2]);
+    }
 
     if ((he = gethostbyname(hostname)) == NULL) {
         switch(h_errno)

@@ -68,15 +68,13 @@ void* connection_handler(void *data)
 
 int main(int argc , char *argv[])
 {
+    int port = 6660;
     int socket_desc, client_socket, c, ret;
     struct sockaddr_in server_addr, client_addr;
 
-    if (argc != 2) {
-        printf("Please enter a port.\n");
-        return 0;
+    if (argc == 2) {
+        port = atoi(argv[1]);
     }
-
-    int port = atoi(argv[1]);
      
     errno = 0;
     socket_desc = socket(AF_INET, SOCK_STREAM, IPPROTO_IP); // ipv4, tcp, ip
