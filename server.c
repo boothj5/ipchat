@@ -23,8 +23,9 @@ void* connection_handler(void *data)
     char *client_message;
 
     while(1) {
-        client_message = malloc(sizeof(char) * 2000);
 
+        // listen for from client
+        client_message = malloc(sizeof(char) * 2000);
         errno = 0;
         read_size = recv(client->sock, client_message, 2000 , 0);
 
@@ -53,6 +54,7 @@ void* connection_handler(void *data)
             printf("%s:%d - Received: %s\n", client->ip, client->port, incoming);
             fflush(stdout);
 
+            // send to all clients
             GSList *curr = clients;
             while (curr != NULL) {
                 ThreadData *participant = curr->data;
@@ -75,6 +77,8 @@ int main(int argc , char *argv[])
     if (argc == 2) {
         port = atoi(argv[1]);
     }
+
+    printf("Starting on port: %d...\n", port);
      
     errno = 0;
     socket_desc = socket(AF_INET, SOCK_STREAM, IPPROTO_IP); // ipv4, tcp, ip
@@ -103,19 +107,20 @@ int main(int argc , char *argv[])
     puts("Waiting for incoming connections...");
 
     while (1) {
-        c = sizeof(struct sockaddr_in);
 
+        // listen for new connections
+        c = sizeof(struct sockaddr_in);
         errno = 0;
         client_socket = accept(socket_desc, (struct sockaddr *)&client_addr, (socklen_t*)&c);
         if (client_socket == -1) {
             perror("Accept failed");
         }
 
+        // add new client
         ThreadData *client = malloc(sizeof(ThreadData));
         client->ip = strdup(inet_ntoa(client_addr.sin_addr));
         client->port = ntohs(client_addr.sin_port);
         client->sock = client_socket;
-
         clients = g_slist_append(clients, client);
 
         pthread_t sniffer_thread;

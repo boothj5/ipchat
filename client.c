@@ -46,8 +46,7 @@ main(int argc, char *argv[])
 
     if (result != 0) {
         strncpy(ip, hostname, strlen(hostname));
-	ip[strlen(hostname)] = '\0';
-	wprintw(outw, "Connecting to %s\n", ip);
+        ip[strlen(hostname)] = '\0';
     } else {
         if ((he = gethostbyname(hostname)) == NULL) {
             switch(h_errno)
@@ -83,6 +82,8 @@ main(int argc, char *argv[])
             }
         }
     }
+
+    wprintw(outw, "Connecting to %s:%d...\n", ip, port);
 
     int socket_desc;
     socket_desc = socket(AF_INET, SOCK_STREAM, IPPROTO_IP); // ipv4, tcp, ip
