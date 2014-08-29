@@ -70,7 +70,32 @@ void* connection_handler(void *data)
 
 int main(int argc , char *argv[])
 {
-    int port = 6660;
+    static int port = 0;
+
+    static GOptionEntry entries[] =
+    {
+        { "port", 'p', 0, G_OPTION_ARG_INT, &port, "Listen port", NULL },
+        { NULL }
+    };
+
+    GError *error = NULL;
+    GOptionContext *context;
+
+    context = g_option_context_new(NULL);
+    g_option_context_add_main_entries(context, entries, NULL);
+    if (!g_option_context_parse(context, &argc, &argv, &error)) {
+        g_print("%s\n", error->message);
+        g_option_context_free(context);
+        g_error_free(error);
+        return 1;
+    }
+
+    g_option_context_free(context);
+
+    if (port == 0) {
+        port = 6660;
+    }
+
     int socket_desc, client_socket, c, ret;
     struct sockaddr_in server_addr, client_addr;
 
