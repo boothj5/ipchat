@@ -16,6 +16,8 @@ typedef struct thread_client_t {
 
 GSList *clients;
 
+pthread_mutex_t clients_lock;
+
 void* connection_handler(void *data)
 {
     ThreadData *client = (ThreadData *)data;
@@ -32,17 +34,45 @@ void* connection_handler(void *data)
         // error
         if (read_size == -1) {
             perror("Error receiving on connection");
-            free(client->ip);
-            free(client);
             free(client_message);
+
+            // remove client from list
+            pthread_mutex_lock(&clients_lock);
+            GSList *curr = clients;
+            while (curr != NULL) {
+                if (curr->data == client) {
+                    pthread_mutex_lock(&clients_lock);
+                    clients = g_slist_remove_link(clients, curr);
+                    pthread_mutex_unlock(&clients_lock);
+                    free(client->ip);
+                    free(client);
+                    break;
+                }
+                curr = g_slist_next(curr);
+            }
+            printf("Connected clients: %d\n", g_slist_length(clients));
+            pthread_mutex_unlock(&clients_lock);
             break;
 
         // client closed
         } else if (read_size == 0) {
             printf("%s:%d - Client disconnected.\n", client->ip, client->port);
-            free(client->ip);
-            free(client);
             free(client_message);
+
+            // remove client from list
+            pthread_mutex_lock(&clients_lock);
+            GSList *curr = clients;
+            while (curr != NULL) {
+                if (curr->data == client) {
+                    clients = g_slist_remove_link(clients, curr);
+                    free(client->ip);
+                    free(client);
+                    break;
+                }
+                curr = g_slist_next(curr);
+            }
+            printf("Connected clients: %d\n", g_slist_length(clients));
+            pthread_mutex_unlock(&clients_lock);
             break;
 
         // successful recv
@@ -55,12 +85,14 @@ void* connection_handler(void *data)
             fflush(stdout);
 
             // send to all clients
+            pthread_mutex_lock(&clients_lock);
             GSList *curr = clients;
             while (curr != NULL) {
                 ThreadData *participant = curr->data;
                 write(participant->sock, client_message, read_size);
                 curr = g_slist_next(curr);
             }
+            pthread_mutex_unlock(&clients_lock);
             free(client_message);
         }
     }
@@ -131,6 +163,10 @@ int main(int argc , char *argv[])
     }
     puts("Waiting for incoming connections...");
 
+    pthread_mutex_lock(&clients_lock);
+    printf("Connected clients: %d\n", g_slist_length(clients));
+    pthread_mutex_unlock(&clients_lock);
+
     while (1) {
 
         // listen for new connections
@@ -146,7 +182,9 @@ int main(int argc , char *argv[])
         client->ip = strdup(inet_ntoa(client_addr.sin_addr));
         client->port = ntohs(client_addr.sin_port);
         client->sock = client_socket;
+        pthread_mutex_lock(&clients_lock);
         clients = g_slist_append(clients, client);
+        pthread_mutex_unlock(&clients_lock);
 
         pthread_t sniffer_thread;
         ret = pthread_create(&sniffer_thread, NULL, connection_handler, (void *)client);
@@ -155,6 +193,10 @@ int main(int argc , char *argv[])
         } else {
             puts("Could not create thread.");
         }
+
+        pthread_mutex_lock(&clients_lock);
+        printf("Connected clients: %d\n", g_slist_length(clients));
+        pthread_mutex_unlock(&clients_lock);
     }
  
     return 0;

@@ -13,7 +13,7 @@
 int
 main(int argc, char *argv[])
 {
-    char *hostname;
+    char *hostname = NULL;
     int port = 0;
     char ip[100];
     struct hostent *he = NULL;
