@@ -8,6 +8,7 @@
 #include <netdb.h>
 #include <ncursesw/ncurses.h>
 #include <fcntl.h>
+#include <glib.h>
 
 int
 main(int argc, char *argv[])
@@ -15,9 +16,10 @@ main(int argc, char *argv[])
     char *hostname;
     int port = 6660;
     char ip[100];
-    struct hostent *he;
+    struct hostent *he = NULL;
     struct in_addr **addr_list;
     int connected = 0;
+    gboolean ip_resolved = FALSE;
 
     if (argc != 2) {
         printf("Please enter at least a hostname or ip address.\n");
@@ -27,6 +29,44 @@ main(int argc, char *argv[])
     hostname = argv[1];
     if (argc == 3) {
         port = atoi(argv[2]);
+    }
+
+    // parse ip address   
+    struct sockaddr_in sa;
+    int result = inet_pton(AF_INET, hostname, &(sa.sin_addr));
+
+    // valid ip address
+    if (result != 0) {
+        strncpy(ip, hostname, strlen(hostname));
+        ip[strlen(hostname)] = '\0';
+        ip_resolved = TRUE;
+
+    // invalid ip address, attempt to resolve hostname
+    } else {
+        he = gethostbyname(hostname);
+        
+        // failed to resolve hostname
+        if (he == NULL) {
+            switch(h_errno)
+            {
+            case HOST_NOT_FOUND:
+                printf("%s: Unknown host\n", hostname);
+                break;
+            case NO_ADDRESS:
+                printf("%s: No ip address found\n", hostname);
+                break;
+            case NO_RECOVERY:
+                printf("%s: Non recoverable name server request\n", hostname);
+                break;
+            case TRY_AGAIN:
+                printf("%s: Temporary error occurred at name server\n", hostname);
+                break;
+            default:
+                printf("%s: Unknown error occurred getting ip address\n", hostname);
+                break;
+            }
+            return 1;
+        }
     }
 
     initscr();
@@ -40,36 +80,9 @@ main(int argc, char *argv[])
     WINDOW *inpw = newwin(rows/2-1, cols, rows/2, 0);
     scrollok(inpw, TRUE);
     wtimeout(inpw, 20);
-   
-    struct sockaddr_in sa;
-    int result = inet_pton(AF_INET, hostname, &(sa.sin_addr));
 
-    if (result != 0) {
-        strncpy(ip, hostname, strlen(hostname));
-        ip[strlen(hostname)] = '\0';
-    } else {
-        if ((he = gethostbyname(hostname)) == NULL) {
-            switch(h_errno)
-            {
-	        case HOST_NOT_FOUND:
-	            wprintw(outw, "%s: Unknown host\n", hostname);
-	            break;
-	        case NO_ADDRESS:
-                    wprintw(outw, "%s: No ip address found\n", hostname);
-                    break;
-                case NO_RECOVERY:
-                    wprintw(outw, "%s: Non recoverable name server request\n", hostname);
-                    break;
-                case TRY_AGAIN:
-                    wprintw(outw, "%s: Temporary error occurred at name server\n", hostname);
-                    break;
-                default:
-                    wprintw(outw, "%s: Unknown error occurred getting ip address\n", hostname);
-                    break;
-            }
-            return 1;
-        }
-
+    if (ip_resolved == FALSE) {
+        // get ip address
         wprintw(outw, "Host %s resolved to:\n", hostname);
         wrefresh(outw);
         addr_list = (struct in_addr**)he->h_addr_list;
