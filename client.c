@@ -14,21 +14,41 @@ int
 main(int argc, char *argv[])
 {
     char *hostname;
-    int port = 6660;
+    int port = 0;
     char ip[100];
     struct hostent *he = NULL;
     struct in_addr **addr_list;
     int connected = 0;
     gboolean ip_resolved = FALSE;
 
-    if (argc != 2) {
-        printf("Please enter at least a hostname or ip address.\n");
-        return 0;
+    GOptionEntry entries[] =
+    {
+        { "host", 'h', 0, G_OPTION_ARG_STRING, &hostname, "Server hostname or IP address", NULL },
+        { "port", 'p', 0, G_OPTION_ARG_INT, &port, "Listen port", NULL },
+        { NULL }
+    };
+
+    GError *error = NULL;
+    GOptionContext *context;
+
+    context = g_option_context_new(NULL);
+    g_option_context_add_main_entries(context, entries, NULL);
+    if (!g_option_context_parse(context, &argc, &argv, &error)) {
+        g_print("%s\n", error->message);
+        g_option_context_free(context);
+        g_error_free(error);
+        return 1;
     }
 
-    hostname = argv[1];
-    if (argc == 3) {
-        port = atoi(argv[2]);
+    g_option_context_free(context);
+
+    if (hostname == NULL) {
+        printf("Use -h to provide a hostname or ip address.\n");
+        return 1;
+    }
+
+    if (port == 0) {
+        port = 6660;
     }
 
     // parse ip address   

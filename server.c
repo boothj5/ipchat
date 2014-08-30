@@ -70,9 +70,9 @@ void* connection_handler(void *data)
 
 int main(int argc , char *argv[])
 {
-    static int port = 0;
+    int port = 0;
 
-    static GOptionEntry entries[] =
+    GOptionEntry entries[] =
     {
         { "port", 'p', 0, G_OPTION_ARG_INT, &port, "Listen port", NULL },
         { NULL }
