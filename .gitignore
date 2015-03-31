@@ -8,3 +8,19 @@ http/http.project
 http/httpclient
 sockets.workspace
 
+# autoconf files
+http/.deps/
+http/Makefile
+http/Makefile.in
+http/aclocal.m4
+http/autom4te.cache/
+http/build-aux/
+http/config.log
+http/config.status
+http/configure
+http/src/.deps/
+http/src/.dirstamp
+http/src/config.h
+http/src/config.h.in
+http/src/httpclient.o
+http/src/stamp-h1

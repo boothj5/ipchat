@@ -44,14 +44,14 @@ url_parse(char *url_s, url_parse_err_t *err)
 
     int pos = strlen("http://");
     int start = pos;
-    while (url_s[pos] != '/' && url_s[pos] != ':' && pos < strlen(url_s)) pos++;
+    while (url_s[pos] != '/' && url_s[pos] != ':' && pos < (int)strlen(url_s)) pos++;
     char *host = strndup(&url_s[start], pos - start);
 
     char *port_s = NULL;
     if (url_s[pos] == ':') {
         pos++;
         start = pos;
-        while (url_s[pos] != '/' && pos < strlen(url_s)) pos++;
+        while (url_s[pos] != '/' && pos < (int)strlen(url_s)) pos++;
         port_s = strndup(&url_s[start], pos - start);
     } else {
         port_s = strdup("80");
