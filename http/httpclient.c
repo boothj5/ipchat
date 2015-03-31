@@ -1,19 +1,21 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 
 #include <glib.h>
 
 typedef struct url_t {
     char *scheme;
     char *host;
-    char *port;
+    int port;
     char *path;
 } HttpClientUrl;
 
 typedef enum {
     NO_SCHEME,
-    INVALID_SCHEME
+    INVALID_SCHEME,
+    INVALID_PORT
 } url_parse_err_t;
 
 HttpClientUrl*
@@ -26,6 +28,7 @@ url_parse(char *url_s, url_parse_err_t *err)
     }
     if (strcmp(scheme, "http") != 0) {
         *err = INVALID_SCHEME;
+        g_free(scheme);
         return NULL;
     }
 
@@ -44,6 +47,17 @@ url_parse(char *url_s, url_parse_err_t *err)
         port_s = strdup("80");
     }
 
+    char *end;
+    errno = 0;
+    int port = (int) strtol(port_s, &end, 10);
+    if ((!(errno == 0 && port_s && !*end)) || (port < 1)) {
+        *err = INVALID_PORT;
+        g_free(scheme);
+        free(host);
+        free(port_s);
+        return NULL;
+    }
+
     char *path = NULL;
     if (url_s[pos] != '\0') {
         path = strdup(&url_s[pos]);
@@ -54,7 +68,7 @@ url_parse(char *url_s, url_parse_err_t *err)
     HttpClientUrl *url = malloc(sizeof(HttpClientUrl));
     url->scheme = scheme;
     url->host = host;
-    url->port = port_s;
+    url->port = port;
     url->path = path;
 
     return url;
@@ -100,6 +114,9 @@ main(int argc, char *argv[])
             case INVALID_SCHEME:
                 printf("Error parsing URL, invalid scheme.\n");
                 return 1;
+            case INVALID_PORT:
+                printf("Error parsing URL, invalid port.\n");
+                return 1;
             default:
                 printf("Error parsing URL, unknown.\n");
                 return 1;
@@ -108,7 +125,7 @@ main(int argc, char *argv[])
 
     printf("Scheme : %s\n", url->scheme);
     printf("Host   : %s\n", url->host);
-    printf("Port   : %s\n", url->port);
+    printf("Port   : %d\n", url->port);
     printf("Path   : %s\n", url->path);
     return 0;
 }
