@@ -1,3 +1,10 @@
 client
 server
 client.dSYM/
+.codelite/
+chat/chat.project
+http/.codelite/
+http/http.project
+http/httpclient
+sockets.workspace
+
