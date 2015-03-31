@@ -1,108 +1,9 @@
-#include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <errno.h>
+#include <stdio.h>
 
 #include <glib.h>
 
-typedef struct url_t {
-    char *scheme;
-    char *host;
-    int port;
-    char *path;
-} HttpUrl;
-
-typedef struct request_t {
-    HttpUrl *url;
-    char *method;
-} HttpRequest;
-
-typedef enum {
-    URL_NO_SCHEME,
-    URL_INVALID_SCHEME,
-    URL_INVALID_PORT
-} url_parse_err_t;
-
-typedef enum {
-    REQ_NO_URL_SPECIFIED,
-    REQ_INVALID_METHOD
-} request_err_t;
-
-HttpUrl*
-url_parse(char *url_s, url_parse_err_t *err)
-{
-    char *scheme = g_uri_parse_scheme(url_s);
-    if (!scheme) {
-        *err = URL_NO_SCHEME;
-        return NULL;
-    }
-    if (strcmp(scheme, "http") != 0) {
-        *err = URL_INVALID_SCHEME;
-        g_free(scheme);
-        return NULL;
-    }
-
-    int pos = strlen("http://");
-    int start = pos;
-    while (url_s[pos] != '/' && url_s[pos] != ':' && pos < (int)strlen(url_s)) pos++;
-    char *host = strndup(&url_s[start], pos - start);
-
-    char *port_s = NULL;
-    if (url_s[pos] == ':') {
-        pos++;
-        start = pos;
-        while (url_s[pos] != '/' && pos < (int)strlen(url_s)) pos++;
-        port_s = strndup(&url_s[start], pos - start);
-    } else {
-        port_s = strdup("80");
-    }
-
-    char *end;
-    errno = 0;
-    int port = (int) strtol(port_s, &end, 10);
-    if ((!(errno == 0 && port_s && !*end)) || (port < 1)) {
-        *err = URL_INVALID_PORT;
-        g_free(scheme);
-        free(host);
-        free(port_s);
-        return NULL;
-    }
-
-    char *path = NULL;
-    if (url_s[pos] != '\0') {
-        path = strdup(&url_s[pos]);
-    } else {
-        path = strdup("/");
-    }
-
-    HttpUrl *url = malloc(sizeof(HttpUrl));
-    url->scheme = scheme;
-    url->host = host;
-    url->port = port;
-    url->path = path;
-
-    return url;
-}
-
-HttpRequest*
-httprequest_create(HttpUrl *url, char *method, request_err_t *err)
-{
-    if (!url) {
-        *err = REQ_NO_URL_SPECIFIED;
-        return NULL;
-    }
-
-    if (g_strcmp0(method, "GET") != 0) {
-        *err = REQ_INVALID_METHOD;
-        return NULL;
-    }
-
-    HttpRequest *request = malloc(sizeof(HttpRequest));
-    request->url = url;
-    request->method = strdup(method);
-
-    return request;
-}
+#include "httprequest.h"
 
 int
 main(int argc, char *argv[])
@@ -138,31 +39,18 @@ main(int argc, char *argv[])
         return 1;
     }
 
-    url_parse_err_t u_err;
-    HttpUrl *url = url_parse(arg_url, &u_err);
-    if (!url) {
-        switch (u_err) {
-            case URL_NO_SCHEME:
-                printf("Error parsing URL, no scheme.\n");
-                return 1;
-            case URL_INVALID_SCHEME:
-                printf("Error parsing URL, invalid scheme.\n");
-                return 1;
-            case URL_INVALID_PORT:
-                printf("Error parsing URL, invalid port.\n");
-                return 1;
-            default:
-                printf("Error parsing URL, unknown.\n");
-                return 1;
-        }
-    }
-
     request_err_t r_err;
-    HttpRequest *request = httprequest_create(url, arg_method, &r_err);
+    HttpRequest *request = httprequest_create(arg_url, arg_method, &r_err);
     if (!request) {
         switch (r_err) {
-            case REQ_NO_URL_SPECIFIED:
-                printf("Error creating request, no URL provided.\n");
+            case URL_NO_SCHEME:
+                printf("Error creating request, no scheme.\n");
+                return 1;
+            case URL_INVALID_SCHEME:
+                printf("Error creating request, invalid scheme.\n");
+                return 1;
+            case URL_INVALID_PORT:
+                printf("Error creating request, invalid port.\n");
                 return 1;
             case REQ_INVALID_METHOD:
                 printf("Error creating request, unsupported method.\n");
