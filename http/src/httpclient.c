@@ -238,6 +238,7 @@ httprequest_perform(HttpContext context, HttpRequest request)
 
     while ((tmpres = recv(sock, buf, BUFSIZ, 0)) > 0) {
         g_string_append(res_str, buf);
+        memset(buf, 0, tmpres);
     }
 
     if(tmpres < 0) {
