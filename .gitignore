@@ -25,3 +25,7 @@ http/src/config.h
 http/src/config.h.in
 http/src/httpclient.o
 http/src/stamp-h1
+Makefile
+core
+http.mk
+
