@@ -24,6 +24,13 @@ struct httprequest_t {
     GHashTable *headers;
 };
 
+struct httpresponse_t {
+    char *proto;
+    int status;
+    GHashTable *headers;
+    char *body;
+};
+
 HttpUrl*
 _url_parse(char *url_s, request_err_t *err)
 {
@@ -138,7 +145,7 @@ httprequest_create(char *url_s, char *method, request_err_t *err)
     return request;
 }
 
-char*
+HttpResponse
 httprequest_perform(HttpRequest request)
 {
     // create socket ip4, tcp, ip
@@ -199,7 +206,7 @@ httprequest_perform(HttpRequest request)
 
     g_string_append(req, "\r\n");
 
-    printf("\n---REQUEST START---\n%s---REQUEST END---\n", req->str);
+//    printf("\n---REQUEST START---\n%s---REQUEST END---\n", req->str);
 
     int sent = 0;
     while (sent < strlen(req->str)) {
@@ -215,7 +222,6 @@ httprequest_perform(HttpRequest request)
     memset(buf, 0, sizeof(buf));
     int tmpres;
     GString *res_str = g_string_new("");
-    char *result = NULL;
 
     while ((tmpres = recv(sock, buf, BUFSIZ, 0)) > 0) {
         g_string_append(res_str, buf);
@@ -228,12 +234,55 @@ httprequest_perform(HttpRequest request)
     g_string_free(req, TRUE);
     close(sock);
 
-    result = res_str->str;
-    g_string_free(res_str, FALSE);
+//    printf("\n---RESPONSE START---\n");
+//    printf("%s", res_str->str);
+//    printf("---RESPONSE END---\n");
 
-    printf("\n---RESPONSE START---\n");
-    printf("%s", result);
-    printf("---RESPONSE END---\n");
+    HttpResponse response = malloc(sizeof(HttpResponse));
+    response->headers = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
+    gchar **chunks = g_strsplit(res_str->str, "\r\n", -1);
 
-    return result;
+    // set status
+    char *proto_line = chunks[0];
+    gchar **proto_chunks = g_strsplit(proto_line, " ", -1);
+    response->status = (int) strtol(proto_chunks[1], NULL, 10);
+
+    // set headers
+    int count = 1;
+    while (g_strcmp0(chunks[count], "") != 0) {
+        gchar **header_chunks = g_strsplit(chunks[count++], ":", -1);
+        char *header_key = strdup(header_chunks[0]);
+        char *header_val = strdup(header_chunks[1]);
+        g_strstrip(header_key);
+        g_strstrip(header_val);
+        g_hash_table_replace(response->headers, header_key, header_val);
+    }
+
+    // set body
+    count++;
+    if (chunks[count]) {
+        response->body = strdup(chunks[count]);
+    } else {
+        response->body = NULL;
+    }
+
+    return response;
+}
+
+int
+httpresponse_status(HttpResponse response)
+{
+    return response->status;
+}
+
+char*
+httpresponse_body(HttpResponse response)
+{
+    return response->body;
+}
+
+GHashTable*
+httpresponse_headers(HttpResponse response)
+{
+    return response->headers;
 }

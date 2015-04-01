@@ -56,7 +56,28 @@ main(int argc, char *argv[])
 
     httprequest_addheader(request, "User-Agent", "HTTPCLIENT 1.0");
 
-    httprequest_perform(request);
+    HttpResponse response = httprequest_perform(request);
+    printf("\n");
+
+    int status = httpresponse_status(response);
+
+    printf("Status: %d\n\n", status);
+
+
+    GHashTable *headers = httpresponse_headers(response);
+    GList *keys = g_hash_table_get_keys(headers);
+    GList *curr = keys;
+    if (curr) {
+        printf("Headers:\n");
+        while (curr) {
+            printf("  %s: %s\n", (char *)curr->data, (char *)g_hash_table_lookup(headers, curr->data));
+            curr = g_list_next(curr);
+        }
+        printf("\n");
+    }
+
+    char *body = httpresponse_body(response);
+    printf("Body:\n%s\n", body);
 
     return 0;
 }
