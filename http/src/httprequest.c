@@ -130,19 +130,23 @@ httprequest_perform(HttpRequest *request)
     }
 
 
-    char *getpage = request->url->path;
-    char *tpl = "GET /%s HTTP/1.0\r\nHost: %s\r\nUser-Agent: %s\r\n\r\n";
-    if(getpage[0] == '/'){
-        getpage = getpage + 1;
-    }
-    char *query = (char *)malloc(strlen(request->url->host)+strlen(getpage)+strlen("HTTPCLIENT 1.0")+strlen(tpl)-5);
-    sprintf(query, tpl, getpage, request->url->host, "HTTPCLIENT 1.0");
+    GString *req = g_string_new("");
+    g_string_append(req, "GET /");
+    g_string_append(req, request->url->path);
+    g_string_append(req, " HTTP/1.0");
+    g_string_append(req, "\r\n");
+    g_string_append(req, "Host: ");
+    g_string_append(req, request->url->host);
+    g_string_append(req, "\r\n");
+    g_string_append(req, "User-Agent: HTTPCLIENT 1.0");
+    g_string_append(req, "\r\n");
+    g_string_append(req, "\r\n");
 
-    printf("\n---REQUEST START---\n%s---REQUEST END---\n", query);
+    printf("\n---REQUEST START---\n%s---REQUEST END---\n", req->str);
 
     int sent = 0;
-    while (sent < strlen(query)) {
-        int tmpres = send(sock, query+sent, strlen(query)-sent, 0);
+    while (sent < strlen(req->str)) {
+        int tmpres = send(sock, req->str+sent, strlen(req->str)-sent, 0);
         if (tmpres == -1){
             perror("Could not send request");
             return NULL;
@@ -179,7 +183,7 @@ httprequest_perform(HttpRequest *request)
         perror("Error receiving data");
     }
 
-    free(query);
+    g_string_free(req, TRUE);
     close(sock);
 
     result = res_str->str;
