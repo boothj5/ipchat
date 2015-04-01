@@ -21,5 +21,6 @@ typedef enum {
 } request_err_t;
 
 HttpRequest* httprequest_create(char *url_s, char *method, request_err_t *err);
+char* httprequest_perform(HttpRequest *request);
 
 #endif

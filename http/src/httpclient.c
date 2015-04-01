@@ -61,10 +61,11 @@ main(int argc, char *argv[])
         }
     }
 
-    printf("Scheme : %s\n", request->url->scheme);
-    printf("Host   : %s\n", request->url->host);
-    printf("Port   : %d\n", request->url->port);
-    printf("Path   : %s\n", request->url->path);
-    printf("Method : %s\n", request->method);
+    char *response = httprequest_perform(request);
+
+    printf("\n---RESPONSE START---\n\n");
+    printf("%s", response);
+    printf("\n---RESPONSE END---\n");
+
     return 0;
 }

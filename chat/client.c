@@ -42,6 +42,8 @@ main(int argc, char *argv[])
 
     g_option_context_free(context);
 
+    printf("\n");
+
     if (hostname == NULL) {
         printf("Use -h to provide a hostname or ip address.\n");
         return 1;
@@ -51,7 +53,7 @@ main(int argc, char *argv[])
         port = 6660;
     }
 
-    // parse ip address   
+    // parse ip address
     struct sockaddr_in sa;
     int result = inet_pton(AF_INET, hostname, &(sa.sin_addr));
 
@@ -64,7 +66,7 @@ main(int argc, char *argv[])
     // invalid ip address, attempt to resolve hostname
     } else {
         he = gethostbyname(hostname);
-        
+
         // failed to resolve hostname
         if (he == NULL) {
             switch(h_errno)
