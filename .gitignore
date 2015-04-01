@@ -10,6 +10,7 @@ sockets.workspace
 http/src/httprequest.o
 http/main
 http/src/main.o
+Debug/
 
 # autoconf files
 http/.deps/
