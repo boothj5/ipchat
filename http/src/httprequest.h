@@ -11,6 +11,7 @@ typedef struct url_t {
 typedef struct request_t {
     HttpUrl *url;
     char *method;
+    GHashTable *headers;
 } HttpRequest;
 
 typedef enum {

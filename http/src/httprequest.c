@@ -84,6 +84,13 @@ httprequest_create(char *url_s, char *method, request_err_t *err)
     request->url = url;
     request->method = strdup(method);
 
+    request->headers = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
+
+    GString *host_header = g_string_new("");
+    g_string_append_printf(host_header, "%s:%d", request->url->host, request->url->port);
+    g_hash_table_replace(request->headers, strdup("Host"), host_header->str);
+    g_string_free(host_header, FALSE);
+
     return request;
 }
 
@@ -129,14 +136,23 @@ httprequest_perform(HttpRequest *request)
         printf("Connected successfully.\n");
     }
 
-
     GString *req = g_string_new("");
     g_string_append(req, "GET ");
     g_string_append(req, request->url->path);
     g_string_append(req, " HTTP/1.1");
     g_string_append(req, "\r\n");
-    g_string_append(req, "Host: ");
-    g_string_append_printf(req, "%s:%d", request->url->host, request->url->port);
+
+    GList *header_keys = g_hash_table_get_keys(request->headers);
+    GList *header = header_keys;
+    while (header) {
+        char *key = header->data;
+        char *val = g_hash_table_lookup(request->headers, key);
+        g_string_append_printf(req, "%s: %s", key, val);
+        g_string_append(req, "\r\n");
+        header = g_list_next(header);
+    }
+    g_list_free(header_keys);
+
     g_string_append(req, "\r\n");
     g_string_append(req, "\r\n");
 
