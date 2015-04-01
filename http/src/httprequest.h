@@ -21,7 +21,10 @@ typedef enum {
     REQ_INVALID_METHOD
 } request_err_t;
 
+void httprequest_error(char *prefix, request_err_t err);
+
 HttpRequest* httprequest_create(char *url_s, char *method, request_err_t *err);
 char* httprequest_perform(HttpRequest *request);
+void httprequest_addheader(HttpRequest *request, const char * const key, const char *const val);
 
 #endif

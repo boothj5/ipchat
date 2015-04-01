@@ -10,6 +10,7 @@ main(int argc, char *argv[])
 {
     char *arg_url = NULL;
     char *arg_method = NULL;
+    request_err_t r_err;
 
     GOptionEntry entries[] =
     {
@@ -39,27 +40,13 @@ main(int argc, char *argv[])
         return 1;
     }
 
-    request_err_t r_err;
     HttpRequest *request = httprequest_create(arg_url, arg_method, &r_err);
     if (!request) {
-        switch (r_err) {
-            case URL_NO_SCHEME:
-                printf("Error creating request, no scheme.\n");
-                return 1;
-            case URL_INVALID_SCHEME:
-                printf("Error creating request, invalid scheme.\n");
-                return 1;
-            case URL_INVALID_PORT:
-                printf("Error creating request, invalid port.\n");
-                return 1;
-            case REQ_INVALID_METHOD:
-                printf("Error creating request, unsupported method.\n");
-                return 1;
-            default:
-                printf("Error creating request, unknown.\n");
-                return 1;
-        }
+        httprequest_error("Error creating request", r_err);
+        return 1;
     }
+
+    httprequest_addheader(request, "User-Agent", "HTTPCLIENT 1.0");
 
     char *response = httprequest_perform(request);
 

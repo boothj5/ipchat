@@ -67,6 +67,38 @@ _url_parse(char *url_s, request_err_t *err)
     return url;
 }
 
+void
+httprequest_error(char *prefix, request_err_t err)
+{
+    GString *full_msg = g_string_new("");
+    if (prefix) {
+        g_string_append_printf(full_msg, "%s: ", prefix);
+    }
+    switch (err) {
+        case URL_NO_SCHEME:
+            g_string_append(full_msg, "no scheme.");
+            return;
+        case URL_INVALID_SCHEME:
+            g_string_append(full_msg, "invalid scheme.");
+            return;
+        case URL_INVALID_PORT:
+            g_string_append(full_msg, "invalid port.");
+            return;
+        case REQ_INVALID_METHOD:
+            g_string_append(full_msg, "unsupported method.");
+            return;
+        default:
+            g_string_append(full_msg, "unknown.\n");
+            return;
+    }
+}
+
+void
+httprequest_addheader(HttpRequest *request, const char * const key, const char *const val)
+{
+    g_hash_table_replace(request->headers, strdup(key), strdup(val));
+}
+
 HttpRequest*
 httprequest_create(char *url_s, char *method, request_err_t *err)
 {
@@ -83,13 +115,12 @@ httprequest_create(char *url_s, char *method, request_err_t *err)
     HttpRequest *request = malloc(sizeof(HttpRequest));
     request->url = url;
     request->method = strdup(method);
-
     request->headers = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
 
-    GString *host_header = g_string_new("");
-    g_string_append_printf(host_header, "%s:%d", request->url->host, request->url->port);
-    g_hash_table_replace(request->headers, strdup("Host"), host_header->str);
-    g_string_free(host_header, FALSE);
+    GString *host_val = g_string_new("");
+    g_string_append_printf(host_val, "%s:%d", request->url->host, request->url->port);
+    httprequest_addheader(request, "Host", host_val->str);
+    g_string_free(host_val, FALSE);
 
     return request;
 }
@@ -153,7 +184,6 @@ httprequest_perform(HttpRequest *request)
     }
     g_list_free(header_keys);
 
-    g_string_append(req, "\r\n");
     g_string_append(req, "\r\n");
 
     printf("\n---REQUEST START---\n%s---REQUEST END---\n", req->str);
