@@ -11,6 +11,19 @@
 
 #include "httprequest.h"
 
+typedef struct httpurl_t {
+    char *scheme;
+    char *host;
+    int port;
+    char *path;
+} HttpUrl;
+
+struct httprequest_t {
+    HttpUrl *url;
+    char *method;
+    GHashTable *headers;
+};
+
 HttpUrl*
 _url_parse(char *url_s, request_err_t *err)
 {
@@ -94,12 +107,12 @@ httprequest_error(char *prefix, request_err_t err)
 }
 
 void
-httprequest_addheader(HttpRequest *request, const char * const key, const char *const val)
+httprequest_addheader(HttpRequest request, const char * const key, const char *const val)
 {
     g_hash_table_replace(request->headers, strdup(key), strdup(val));
 }
 
-HttpRequest*
+HttpRequest
 httprequest_create(char *url_s, char *method, request_err_t *err)
 {
     if (g_strcmp0(method, "GET") != 0) {
@@ -112,7 +125,7 @@ httprequest_create(char *url_s, char *method, request_err_t *err)
         return NULL;
     }
 
-    HttpRequest *request = malloc(sizeof(HttpRequest));
+    HttpRequest request = malloc(sizeof(HttpRequest));
     request->url = url;
     request->method = strdup(method);
     request->headers = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
@@ -126,7 +139,7 @@ httprequest_create(char *url_s, char *method, request_err_t *err)
 }
 
 char*
-httprequest_perform(HttpRequest *request)
+httprequest_perform(HttpRequest request)
 {
     // create socket ip4, tcp, ip
     int sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -217,6 +230,10 @@ httprequest_perform(HttpRequest *request)
 
     result = res_str->str;
     g_string_free(res_str, FALSE);
+
+    printf("\n---RESPONSE START---\n");
+    printf("%s", result);
+    printf("---RESPONSE END---\n");
 
     return result;
 }

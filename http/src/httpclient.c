@@ -48,7 +48,7 @@ main(int argc, char *argv[])
     if (!_validate_args(argc, argv, &arg_url, &arg_method)) return 1;
 
     request_err_t r_err;
-    HttpRequest *request = httprequest_create(arg_url, arg_method, &r_err);
+    HttpRequest request = httprequest_create(arg_url, arg_method, &r_err);
     if (!request) {
         httprequest_error("Error creating request", r_err);
         return 1;
@@ -56,11 +56,7 @@ main(int argc, char *argv[])
 
     httprequest_addheader(request, "User-Agent", "HTTPCLIENT 1.0");
 
-    char *response = httprequest_perform(request);
-
-    printf("\n---RESPONSE START---\n");
-    printf("%s", response);
-    printf("---RESPONSE END---\n");
+    httprequest_perform(request);
 
     return 0;
 }
