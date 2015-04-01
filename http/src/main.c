@@ -52,7 +52,7 @@ main(int argc, char *argv[])
     request_err_t r_err;
     HttpRequest request = httprequest_create(arg_url, arg_method, &r_err);
     if (!request) {
-        httprequest_error("Error creating request", r_err);
+        http_error("Error creating request", r_err);
         return 1;
     }
 
@@ -60,7 +60,7 @@ main(int argc, char *argv[])
 
     HttpResponse response = httprequest_perform(ctx, request, &r_err);
     if (!response) {
-        httprequest_error("Error performing request", r_err);
+        http_error("Error performing request", r_err);
         return 1;
     }
     printf("\n");
