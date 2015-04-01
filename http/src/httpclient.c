@@ -63,9 +63,9 @@ main(int argc, char *argv[])
 
     char *response = httprequest_perform(request);
 
-    printf("\n---RESPONSE START---\n\n");
+    printf("\n---RESPONSE START---\n");
     printf("%s", response);
-    printf("\n---RESPONSE END---\n");
+    printf("---RESPONSE END---\n");
 
     return 0;
 }

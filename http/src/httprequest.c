@@ -131,14 +131,12 @@ httprequest_perform(HttpRequest *request)
 
 
     GString *req = g_string_new("");
-    g_string_append(req, "GET /");
+    g_string_append(req, "GET ");
     g_string_append(req, request->url->path);
-    g_string_append(req, " HTTP/1.0");
+    g_string_append(req, " HTTP/1.1");
     g_string_append(req, "\r\n");
     g_string_append(req, "Host: ");
-    g_string_append(req, request->url->host);
-    g_string_append(req, "\r\n");
-    g_string_append(req, "User-Agent: HTTPCLIENT 1.0");
+    g_string_append_printf(req, "%s:%d", request->url->host, request->url->port);
     g_string_append(req, "\r\n");
     g_string_append(req, "\r\n");
 
