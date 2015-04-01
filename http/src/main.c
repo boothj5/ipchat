@@ -47,6 +47,8 @@ main(int argc, char *argv[])
 
     if (!_validate_args(argc, argv, &arg_url, &arg_method)) return 1;
 
+    HttpContext ctx = httpcontext_create(TRUE);
+
     request_err_t r_err;
     HttpRequest request = httprequest_create(arg_url, arg_method, &r_err);
     if (!request) {
@@ -56,28 +58,27 @@ main(int argc, char *argv[])
 
     httprequest_addheader(request, "User-Agent", "HTTPCLIENT 1.0");
 
-    HttpResponse response = httprequest_perform(request);
-    printf("\n");
+    httprequest_perform(ctx, request);
+//    printf("\n");
 
-    int status = httpresponse_status(response);
+//    int status = httpresponse_status(response);
 
-    printf("Status: %d\n\n", status);
-
-
-    GHashTable *headers = httpresponse_headers(response);
-    GList *keys = g_hash_table_get_keys(headers);
-    GList *curr = keys;
-    if (curr) {
-        printf("Headers:\n");
-        while (curr) {
-            printf("  %s: %s\n", (char *)curr->data, (char *)g_hash_table_lookup(headers, curr->data));
-            curr = g_list_next(curr);
-        }
-        printf("\n");
-    }
-
-    char *body = httpresponse_body(response);
-    printf("Body:\n%s\n", body);
+//    printf("Status: %d\n\n", status);
+//
+//    GHashTable *headers = httpresponse_headers(response);
+//    GList *keys = g_hash_table_get_keys(headers);
+//    GList *curr = keys;
+//    if (curr) {
+//        printf("Headers:\n");
+//        while (curr) {
+//            printf("  %s: %s\n", (char *)curr->data, (char *)g_hash_table_lookup(headers, curr->data));
+//            curr = g_list_next(curr);
+//        }
+//        printf("\n");
+//    }
+//
+//    char *body = httpresponse_body(response);
+//    printf("Body:\n%s\n", body);
 
     return 0;
 }

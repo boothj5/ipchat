@@ -11,6 +11,10 @@
 
 #include "httpclient.h"
 
+struct httpcontext_t {
+    gboolean debug;
+};
+
 typedef struct httpurl_t {
     char *scheme;
     char *host;
@@ -87,6 +91,15 @@ _url_parse(char *url_s, request_err_t *err)
     return url;
 }
 
+HttpContext
+httpcontext_create(gboolean debug)
+{
+    HttpContext context = malloc(sizeof(HttpContext));
+    context->debug = debug;
+
+    return context;
+}
+
 void
 httprequest_error(char *prefix, request_err_t err)
 {
@@ -146,7 +159,7 @@ httprequest_create(char *url_s, char *method, request_err_t *err)
 }
 
 HttpResponse
-httprequest_perform(HttpRequest request)
+httprequest_perform(HttpContext context, HttpRequest request)
 {
     // create socket ip4, tcp, ip
     int sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -162,18 +175,18 @@ httprequest_perform(HttpRequest request)
         return NULL;
     }
 
-    printf("\nHost %s resolved to:\n", request->url->host);
+    if (context->debug) printf("\nHost %s resolved to:\n", request->url->host);
     struct in_addr **addr_list = (struct in_addr**)he->h_addr_list;
     char *ip = NULL;
     int i;
     for (i = 0; addr_list[i] != NULL; i++) {
-        printf("  %s\n", inet_ntoa(*addr_list[i]));
+        if (context->debug) printf("  %s\n", inet_ntoa(*addr_list[i]));
         if (i == 0) {
             ip = strdup(inet_ntoa(*addr_list[i]));
         }
     }
 
-    printf("Connecting to %s:%d...\n", ip, request->url->port);
+    if (context->debug) printf("Connecting to %s:%d...\n", ip, request->url->port);
 
     struct sockaddr_in server;
     server.sin_addr.s_addr = inet_addr(ip);
@@ -184,7 +197,7 @@ httprequest_perform(HttpRequest request)
         perror("Failed to connect");
         return NULL;
     } else {
-        printf("Connected successfully.\n");
+        if (context->debug) printf("Connected successfully.\n");
     }
 
     GString *req = g_string_new("");
@@ -206,7 +219,7 @@ httprequest_perform(HttpRequest request)
 
     g_string_append(req, "\r\n");
 
-//    printf("\n---REQUEST START---\n%s---REQUEST END---\n", req->str);
+    if (context->debug) printf("\n---REQUEST START---\n%s---REQUEST END---\n", req->str);
 
     int sent = 0;
     while (sent < strlen(req->str)) {
@@ -234,9 +247,11 @@ httprequest_perform(HttpRequest request)
     g_string_free(req, TRUE);
     close(sock);
 
-//    printf("\n---RESPONSE START---\n");
-//    printf("%s", res_str->str);
-//    printf("---RESPONSE END---\n");
+    if (context->debug) {
+        printf("\n---RESPONSE START---\n");
+        printf("%s", res_str->str);
+        printf("---RESPONSE END---\n");
+    }
 
     HttpResponse response = malloc(sizeof(HttpResponse));
     response->headers = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
