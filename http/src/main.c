@@ -3,7 +3,7 @@
 
 #include <glib.h>
 
-#include "httpclient.h"
+#include "httpclient/httpclient.h"
 
 gboolean
 _validate_args(int argc, char *argv[], char **arg_url, char **arg_method)

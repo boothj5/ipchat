@@ -11,6 +11,9 @@ http/src/httprequest.o
 http/main
 http/src/main.o
 Debug/
+http/src/httpclient/.deps/
+http/src/httpclient/.dirstamp
+http/src/httpclient/httpclient.o
 
 # autoconf files
 http/.deps/
