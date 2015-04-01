@@ -5,17 +5,13 @@
 
 #include "httprequest.h"
 
-int
-main(int argc, char *argv[])
+gboolean
+_validate_args(int argc, char *argv[], char **arg_url, char **arg_method)
 {
-    char *arg_url = NULL;
-    char *arg_method = NULL;
-    request_err_t r_err;
-
     GOptionEntry entries[] =
     {
-        { "url", 'u', 0, G_OPTION_ARG_STRING, &arg_url, "URL", NULL },
-        { "method", 'm', 0, G_OPTION_ARG_STRING, &arg_method, "URL", NULL },
+        { "url", 'u', 0, G_OPTION_ARG_STRING, arg_url, "URL", NULL },
+        { "method", 'm', 0, G_OPTION_ARG_STRING, arg_method, "method", NULL },
         { NULL }
     };
 
@@ -26,20 +22,32 @@ main(int argc, char *argv[])
         g_print("%s\n", error->message);
         g_option_context_free(context);
         g_error_free(error);
-        return 1;
+        return FALSE;
     }
     g_option_context_free(context);
 
-    if (!arg_url) {
+    if (!*arg_url) {
         printf("You must specify a URL\n");
-        return 1;
+        return FALSE;
     }
 
-    if (!arg_method) {
+    if (!*arg_method) {
         printf("You must specify a method\n");
-        return 1;
+        return FALSE;
     }
 
+    return TRUE;
+}
+
+int
+main(int argc, char *argv[])
+{
+    char *arg_url = NULL;
+    char *arg_method = NULL;
+
+    if (!_validate_args(argc, argv, &arg_url, &arg_method)) return 1;
+
+    request_err_t r_err;
     HttpRequest *request = httprequest_create(arg_url, arg_method, &r_err);
     if (!request) {
         httprequest_error("Error creating request", r_err);
