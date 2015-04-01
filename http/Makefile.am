@@ -1,2 +1,2 @@
-bin_PROGRAMS = httpclient
-httpclient_SOURCES = src/httpclient.c src/httprequest.c src/httprequest.h
+bin_PROGRAMS = main
+main_SOURCES = src/main.c src/httpclient.c src/httpclient.h

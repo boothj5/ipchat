@@ -8,6 +8,8 @@ http/http.project
 http/httpclient
 sockets.workspace
 http/src/httprequest.o
+http/main
+http/src/main.o
 
 # autoconf files
 http/.deps/

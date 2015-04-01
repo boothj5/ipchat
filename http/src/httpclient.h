@@ -1,5 +1,5 @@
-#ifndef _HTTPREQUEST_H
-#define _HTTPREQUEST_H
+#ifndef _HTTPCLIENT_H
+#define _HTTPCLIENT_H
 
 typedef enum {
     URL_NO_SCHEME,
