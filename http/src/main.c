@@ -47,7 +47,7 @@ main(int argc, char *argv[])
 
     if (!_validate_args(argc, argv, &arg_url, &arg_method)) return 1;
 
-    HttpContext ctx = httpcontext_create(FALSE);
+    HttpContext ctx = httpcontext_create(TRUE, 60000);
 
     request_err_t r_err;
     HttpRequest request = httprequest_create(arg_url, arg_method, &r_err);
@@ -58,7 +58,11 @@ main(int argc, char *argv[])
 
     httprequest_addheader(request, "User-Agent", "HTTPCLIENT 1.0");
 
-    HttpResponse response = httprequest_perform(ctx, request);
+    HttpResponse response = httprequest_perform(ctx, request, &r_err);
+    if (!response) {
+        httprequest_error("Error performing request", r_err);
+        return 1;
+    }
     printf("\n");
 
     int status = httpresponse_status(response);

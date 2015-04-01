@@ -13,6 +13,7 @@
 
 struct httpcontext_t {
     gboolean debug;
+    int read_timeout_ms;
 };
 
 typedef struct httpurl_t {
@@ -92,10 +93,11 @@ _url_parse(char *url_s, request_err_t *err)
 }
 
 HttpContext
-httpcontext_create(gboolean debug)
+httpcontext_create(gboolean debug, int read_timeout_ms)
 {
     HttpContext context = malloc(sizeof(HttpContext));
     context->debug = debug;
+    context->read_timeout_ms = read_timeout_ms;
 
     return context;
 }
@@ -110,20 +112,41 @@ httprequest_error(char *prefix, request_err_t err)
     switch (err) {
         case URL_NO_SCHEME:
             g_string_append(full_msg, "no scheme.");
-            return;
+            break;
         case URL_INVALID_SCHEME:
             g_string_append(full_msg, "invalid scheme.");
-            return;
+            break;
         case URL_INVALID_PORT:
             g_string_append(full_msg, "invalid port.");
-            return;
+            break;
         case REQ_INVALID_METHOD:
             g_string_append(full_msg, "unsupported method.");
-            return;
+            break;
+        case SOCK_CREATE_FAILED:
+            g_string_append(full_msg, "failed to create socket.");
+            break;
+        case SOCK_CONNECT_FAILED:
+            g_string_append(full_msg, "socket connect failed.");
+            break;
+        case SOCK_SEND_FAILED:
+            g_string_append(full_msg, "socket send failed.");
+            break;
+        case SOCK_TIMEOUT:
+            g_string_append(full_msg, "socket read timeout.");
+            break;
+        case SOCK_RECV_FAILED:
+            g_string_append(full_msg, "socket read failed.");
+            break;
+        case HOST_LOOKUP_FAILED:
+            g_string_append(full_msg, "host lookup failed.");
+            break;
         default:
             g_string_append(full_msg, "unknown.\n");
-            return;
+            break;
     }
+
+    printf("%s\n", full_msg->str);
+    g_string_free(full_msg, TRUE);
 }
 
 void
@@ -159,20 +182,34 @@ httprequest_create(char *url_s, char *method, request_err_t *err)
 }
 
 HttpResponse
-httprequest_perform(HttpContext context, HttpRequest request)
+httprequest_perform(HttpContext context, HttpRequest request, request_err_t *err)
 {
-    // create socket ip4, tcp, ip
+    gdouble elapsed_sec = 0;
+    unsigned long elapsed_msec = 0;
+
+    GTimer *timer = g_timer_new();
     int sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (sock == -1) {
-        perror("Failed to create socket");
+        *err = SOCK_CREATE_FAILED;
         return NULL;
     }
+    elapsed_sec = g_timer_elapsed(timer, NULL);
 
+    if (context->debug) {
+        elapsed_msec = elapsed_sec * 1000.0;
+        printf("\nSocket created: %d ms\n", (int)elapsed_msec);
+    }
+
+    g_timer_start(timer);
     struct hostent *he = gethostbyname(request->url->host);
-    // failed to resolve hostname
     if (he == NULL) {
-        herror("Could lookup host");
+        *err = HOST_LOOKUP_FAILED;
         return NULL;
+    }
+    elapsed_sec = g_timer_elapsed(timer, NULL);
+    if (context->debug) {
+        elapsed_msec = elapsed_sec * 1000.0;
+        printf("\nHost lookup: %d ms\n", (int)elapsed_msec);
     }
 
     if (context->debug) printf("\nHost %s resolved to:\n", request->url->host);
@@ -193,11 +230,30 @@ httprequest_perform(HttpContext context, HttpRequest request)
     server.sin_family = AF_INET; // ipv4
     server.sin_port = htons(request->url->port); // host to network byte order
 
+    struct timeval tv;
+    if (context->read_timeout_ms >= 1000) {
+        tv.tv_sec = context->read_timeout_ms / 1000;
+        tv.tv_usec = (context->read_timeout_ms % 1000) * 1000;
+    } else {
+        tv.tv_sec = 0;
+        tv.tv_usec = context->read_timeout_ms * 1000;
+    }
+
+    setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (char *)&tv,sizeof(struct timeval));
+
+    g_timer_start(timer);
     if (connect(sock, (struct sockaddr*)&server, sizeof(server)) < 0) {
-        perror("Failed to connect");
+        *err = SOCK_CONNECT_FAILED;
         return NULL;
     } else {
-        if (context->debug) printf("Connected successfully.\n");
+        if (context->debug) {
+            elapsed_sec = g_timer_elapsed(timer, NULL);
+            if (context->debug) {
+                elapsed_msec = elapsed_sec * 1000.0;
+                printf("\nSocket connect: %d ms\n", (int)elapsed_msec);
+            }
+            printf("Connected successfully.\n");
+        }
     }
 
     GString *req = g_string_new("");
@@ -222,13 +278,19 @@ httprequest_perform(HttpContext context, HttpRequest request)
     if (context->debug) printf("\n---REQUEST START---\n%s---REQUEST END---\n", req->str);
 
     int sent = 0;
+    g_timer_start(timer);
     while (sent < strlen(req->str)) {
         int tmpres = send(sock, req->str+sent, strlen(req->str)-sent, 0);
-        if (tmpres == -1){
-            perror("Could not send request");
+        if (tmpres == -1) {
+            *err = SOCK_SEND_FAILED;
             return NULL;
         }
         sent += tmpres;
+    }
+    elapsed_sec = g_timer_elapsed(timer, NULL);
+    if (context->debug) {
+        elapsed_msec = elapsed_sec * 1000.0;
+        printf("\nRequest sent: %d ms\n", (int)elapsed_msec);
     }
 
     char buf[BUFSIZ+1];
@@ -236,13 +298,25 @@ httprequest_perform(HttpContext context, HttpRequest request)
     int tmpres;
     GString *res_str = g_string_new("");
 
+    g_timer_start(timer);
     while ((tmpres = recv(sock, buf, BUFSIZ, 0)) > 0) {
         g_string_append(res_str, buf);
         memset(buf, 0, tmpres);
     }
 
-    if(tmpres < 0) {
-        perror("Error receiving data");
+    if (tmpres < 0) {
+        if (errno == EAGAIN || errno == EWOULDBLOCK) {
+            *err = SOCK_TIMEOUT;
+        } else {
+            *err = SOCK_RECV_FAILED;
+        }
+        return NULL;
+    }
+
+    elapsed_sec = g_timer_elapsed(timer, NULL);
+    if (context->debug) {
+        elapsed_msec = elapsed_sec * 1000.0;
+        printf("\nResponse received: %d ms\n", (int)elapsed_msec);
     }
 
     g_string_free(req, TRUE);
