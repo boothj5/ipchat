@@ -154,27 +154,12 @@ httprequest_perform(HttpRequest *request)
 
     char buf[BUFSIZ+1];
     memset(buf, 0, sizeof(buf));
-    int htmlstart = 0;
-    char *htmlcontent;
     int tmpres;
     GString *res_str = g_string_new("");
     char *result = NULL;
 
     while ((tmpres = recv(sock, buf, BUFSIZ, 0)) > 0) {
-        if(htmlstart == 0) {
-            htmlcontent = strstr(buf, "\r\n\r\n");
-            if (htmlcontent != NULL) {
-                htmlstart = 1;
-                htmlcontent += 4;
-            }
-        } else {
-            htmlcontent = buf;
-        }
-
-        if (htmlstart) {
-            g_string_append(res_str, htmlcontent);
-        }
-        memset(buf, 0, tmpres);
+        g_string_append(res_str, buf);
     }
 
     if(tmpres < 0) {
