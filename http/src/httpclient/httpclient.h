@@ -24,7 +24,9 @@ typedef struct httpcontext_t *HttpContext;
 
 void http_error(char *prefix, request_err_t err);
 
-HttpContext httpcontext_create(gboolean debug, int read_timeout_ms);
+HttpContext httpcontext_create(void);
+void httpcontext_debug(HttpContext ctx, gboolean debug);
+void httpcontext_read_timeout(HttpContext ctx, int read_timeout_ms);
 
 HttpRequest httprequest_create(char *url_s, char *method, request_err_t *err);
 void httprequest_addheader(HttpRequest request, const char * const key, const char *const val);

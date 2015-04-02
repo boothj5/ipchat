@@ -6,11 +6,23 @@
 #include "httpcontext.h"
 
 HttpContext
-httpcontext_create(gboolean debug, int read_timeout_ms)
+httpcontext_create(void)
 {
     HttpContext context = malloc(sizeof(HttpContext));
-    context->debug = debug;
-    context->read_timeout_ms = read_timeout_ms;
+    context->debug = FALSE;
+    context->read_timeout_ms = 0;
 
     return context;
+}
+
+void
+httpcontext_debug(HttpContext ctx, gboolean debug)
+{
+    ctx->debug = debug;
+}
+
+void
+httpcontext_read_timeout(HttpContext ctx, int read_timeout_ms)
+{
+    ctx->read_timeout_ms = read_timeout_ms;
 }

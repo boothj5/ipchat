@@ -47,7 +47,9 @@ main(int argc, char *argv[])
 
     if (!_validate_args(argc, argv, &arg_url, &arg_method)) return 1;
 
-    HttpContext ctx = httpcontext_create(TRUE, 60000);
+    HttpContext ctx = httpcontext_create();
+    httpcontext_debug(ctx, TRUE);
+    httpcontext_read_timeout(ctx, 120000);
 
     request_err_t r_err;
     HttpRequest request = httprequest_create(arg_url, arg_method, &r_err);
