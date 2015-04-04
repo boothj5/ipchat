@@ -21,13 +21,18 @@ _url_parse(char *url_s, request_err_t *err)
         *err = URL_NO_SCHEME;
         return NULL;
     }
-    if (strcmp(scheme, "http") != 0) {
+    if ((strcmp(scheme, "http") != 0) && (strcmp(scheme, "https") != 0)) {
         *err = URL_INVALID_SCHEME;
         g_free(scheme);
         return NULL;
     }
 
-    int pos = strlen("http://");
+    int pos = 0;
+    if (strcmp(scheme, "http") == 0) {
+        pos = strlen("http://");
+    } else {
+        pos = strlen("https://");
+    }
     int start = pos;
     while (url_s[pos] != '/' && url_s[pos] != ':' && pos < (int)strlen(url_s)) pos++;
     char *host = strndup(&url_s[start], pos - start);
@@ -101,15 +106,39 @@ httprequest_create(char *url_s, char *method, request_err_t *err)
     return request;
 }
 
+char*
+_build_request(HttpContext context, HttpRequest request)
+{
+    GString *req = g_string_new("");
+    g_string_append(req, "GET ");
+    g_string_append(req, request->url->path);
+    g_string_append(req, " HTTP/1.1");
+    g_string_append(req, "\r\n");
+
+    GList *header_keys = g_hash_table_get_keys(request->headers);
+    GList *header = header_keys;
+    while (header) {
+        char *key = header->data;
+        char *val = g_hash_table_lookup(request->headers, key);
+        g_string_append_printf(req, "%s: %s", key, val);
+        g_string_append(req, "\r\n");
+        header = g_list_next(header);
+    }
+    g_list_free(header_keys);
+
+    g_string_append(req, "\r\n");
+
+    char *result = req->str;
+    g_string_free(req, FALSE);
+
+    if (context->debug) printf("\n---REQUEST START---\n%s---REQUEST END---\n", result);
+
+    return result;
+}
+
 HttpResponse
 httprequest_perform(HttpContext context, HttpRequest request, request_err_t *err)
 {
-    int sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    if (sock == -1) {
-        *err = SOCK_CREATE_FAILED;
-        return NULL;
-    }
-
     struct hostent *he = gethostbyname(request->url->host);
     if (he == NULL) {
         *err = HOST_LOOKUP_FAILED;
@@ -126,8 +155,13 @@ httprequest_perform(HttpContext context, HttpRequest request, request_err_t *err
             ip = strdup(inet_ntoa(*addr_list[i]));
         }
     }
-
     if (context->debug) printf("Connecting to %s:%d...\n", ip, request->url->port);
+
+    int sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (sock == -1) {
+        *err = SOCK_CREATE_FAILED;
+        return NULL;
+    }
 
     struct sockaddr_in server;
     server.sin_addr.s_addr = inet_addr(ip);
@@ -151,30 +185,11 @@ httprequest_perform(HttpContext context, HttpRequest request, request_err_t *err
     }
     if (context->debug) printf("Connected successfully.\n");
 
-    GString *req = g_string_new("");
-    g_string_append(req, "GET ");
-    g_string_append(req, request->url->path);
-    g_string_append(req, " HTTP/1.1");
-    g_string_append(req, "\r\n");
-
-    GList *header_keys = g_hash_table_get_keys(request->headers);
-    GList *header = header_keys;
-    while (header) {
-        char *key = header->data;
-        char *val = g_hash_table_lookup(request->headers, key);
-        g_string_append_printf(req, "%s: %s", key, val);
-        g_string_append(req, "\r\n");
-        header = g_list_next(header);
-    }
-    g_list_free(header_keys);
-
-    g_string_append(req, "\r\n");
-
-    if (context->debug) printf("\n---REQUEST START---\n%s---REQUEST END---\n", req->str);
+    char *req = _build_request(context, request);
 
     int sent = 0;
-    while (sent < strlen(req->str)) {
-        int tmpres = send(sock, req->str+sent, strlen(req->str)-sent, 0);
+    while (sent < strlen(req)) {
+        int tmpres = send(sock, req+sent, strlen(req)-sent, 0);
         if (tmpres == -1) {
             *err = SOCK_SEND_FAILED;
             return NULL;
@@ -182,13 +197,22 @@ httprequest_perform(HttpContext context, HttpRequest request, request_err_t *err
         sent += tmpres;
     }
 
-    char buf[BUFSIZ+1];
+    free(req);
+
+    unsigned char buf[BUFSIZ+1];
     memset(buf, 0, sizeof(buf));
     int tmpres;
-    GString *res_str = g_string_new("");
+    GByteArray *res_buf = g_byte_array_new();
 
     while ((tmpres = recv(sock, buf, BUFSIZ, 0)) > 0) {
-        g_string_append(res_str, buf);
+        if (context->debug) {
+            char *packet = strndup((char *)buf, tmpres);
+            packet[tmpres] = '\0';
+            printf("\n---PACKET START---\n%s---PAKCET END---\n", packet);
+            free(packet);
+        }
+
+        g_byte_array_append(res_buf, buf, tmpres);
         memset(buf, 0, tmpres);
     }
 
@@ -201,18 +225,14 @@ httprequest_perform(HttpContext context, HttpRequest request, request_err_t *err
         return NULL;
     }
 
-    g_string_free(req, TRUE);
     close(sock);
 
-    if (context->debug) {
-        printf("\n---RESPONSE START---\n");
-        printf("%s", res_str->str);
-        printf("---RESPONSE END---\n");
+    HttpResponse response = httpresponse_parse(context, (char *)res_buf->data, err);
+    if (!response) {
+        return NULL;
     }
 
-    HttpResponse response = httpresponse_parse(res_str->str);
-
-    g_string_free(res_str, TRUE);
+    g_byte_array_free(res_buf, TRUE);
 
     return response;
 }

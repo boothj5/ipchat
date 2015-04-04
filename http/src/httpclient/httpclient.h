@@ -15,7 +15,8 @@ typedef enum {
     SOCK_SEND_FAILED,
     SOCK_TIMEOUT,
     SOCK_RECV_FAILED,
-    HOST_LOOKUP_FAILED
+    HOST_LOOKUP_FAILED,
+    RESP_UPSUPPORTED_TRANSFER_ENCODING
 } request_err_t;
 
 typedef struct httprequest_t *HttpRequest;

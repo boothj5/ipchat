@@ -42,8 +42,11 @@ http_error(char *prefix, request_err_t err)
         case HOST_LOOKUP_FAILED:
             g_string_append(full_msg, "host lookup failed.");
             break;
+        case RESP_UPSUPPORTED_TRANSFER_ENCODING:
+            g_string_append(full_msg, "Unsupported transfer encoding.");
+            break;
         default:
-            g_string_append(full_msg, "unknown.\n");
+            g_string_append(full_msg, "unknown.");
             break;
     }
 

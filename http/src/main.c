@@ -65,6 +65,7 @@ main(int argc, char *argv[])
         http_error("Error performing request", r_err);
         return 1;
     }
+
     printf("\n");
 
     int status = httpresponse_status(response);

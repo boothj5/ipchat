@@ -14,6 +14,10 @@ Debug/
 http/src/httpclient/.deps/
 http/src/httpclient/.dirstamp
 http/src/httpclient/httpclient.o
+http/src/httpclient/httpcontext.o
+http/src/httpclient/httperr.o
+http/src/httpclient/httprequest.o
+http/src/httpclient/httpresponse.o
 
 # autoconf files
 http/.deps/
