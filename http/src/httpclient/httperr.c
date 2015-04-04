@@ -45,6 +45,9 @@ http_error(char *prefix, request_err_t err)
         case RESP_UPSUPPORTED_TRANSFER_ENCODING:
             g_string_append(full_msg, "Unsupported transfer encoding.");
             break;
+        case RESP_ERROR_PARSING_CHUNK:
+            g_string_append(full_msg, "Error parsing chunked body.");
+            break;
         default:
             g_string_append(full_msg, "unknown.");
             break;

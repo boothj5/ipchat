@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <errno.h>
 
 #include <glib.h>
 
@@ -60,14 +61,36 @@ httpresponse_parse(HttpContext context, char *response_str, request_err_t *err)
     if (transfer_encoding) {
         if (g_strcmp0(transfer_encoding, "chunked") == 0) {
             if (body) {
-                // will break when chunk includes \r\n
-                gchar **body_chunks = g_strsplit(body, "\r\n", -1);
-                int i = 0;
                 GString *body_str = g_string_new("");
-                while (g_strcmp0(body_chunks[i], "0") != 0) {
-                    g_string_append(body_str, body_chunks[i+1]);
-                    i += 2;
+
+                int start = 0;
+                int pos = 0;
+
+                while (start < strlen(body)) {
+                    // get chunk size
+                    while (!g_str_has_prefix(&body[start + pos], "\r\n")) pos++;
+
+                    char *hexlen = strndup(&body[start], pos);
+                    if (g_strcmp0(hexlen, "0") == 0) break;
+
+                    char *end;
+                    errno = 0;
+                    int len = (int) strtol(hexlen, &end, 16);
+                    if ((!(errno == 0 && hexlen && !*end)) || (len < 1)) {
+                        *err = RESP_ERROR_PARSING_CHUNK;
+                        free(hexlen);
+                        return NULL;
+                    }
+                    free(hexlen);
+
+                    // read chunk
+                    pos += 2;
+                    g_string_append_len(body_str, &body[pos], len);
+
+                    start = pos + len + 2;
+                    pos = 0;
                 }
+
                 response->body = strdup(body_str->str);
                 g_string_free(body_str, TRUE);
 
