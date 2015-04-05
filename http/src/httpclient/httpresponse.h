@@ -8,6 +8,4 @@ struct httpresponse_t {
     char *body;
 };
 
-HttpResponse httpresponse_parse(HttpContext context, char *response_str, request_err_t *err);
-
 #endif
