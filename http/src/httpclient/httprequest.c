@@ -113,7 +113,8 @@ httprequest_create(char *url_s, char *method, request_err_t *err)
     request->headers = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
 
     GString *host_val = g_string_new("");
-    g_string_append_printf(host_val, "%s:%d", request->url->host, request->url->port);
+    g_string_append(host_val, request->url->host);
+    if (request->url->port != 80) g_string_append_printf(host_val, ":%d", request->url->port);
     httprequest_addheader(request, "Host", host_val->str);
     g_string_free(host_val, FALSE);
 
