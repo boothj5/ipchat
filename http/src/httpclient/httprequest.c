@@ -64,7 +64,7 @@ _url_parse(char *url_s, request_err_t *err)
         path = strdup("/");
     }
 
-    HttpUrl *url = malloc(sizeof(HttpUrl));
+    HttpUrl *url = malloc(sizeof(struct httpurl_t));
     url->scheme = scheme;
     url->host = host;
     url->port = port;
@@ -92,7 +92,7 @@ httprequest_create(char *url_s, char *method, request_err_t *err)
         return NULL;
     }
 
-    HttpRequest request = malloc(sizeof(HttpRequest));
+    HttpRequest request = malloc(sizeof(struct httprequest_t));
     request->url = url;
     request->method = strdup(method);
     request->headers = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
@@ -117,7 +117,7 @@ httprequest_perform(HttpContext context, HttpRequest request, request_err_t *err
     if (!sent) return NULL;
 
     // read response
-    HttpResponse response = malloc(sizeof(HttpResponse));
+    HttpResponse response = malloc(sizeof(struct httpresponse_t));
 
     // read headers
     gboolean headers_read = httpnet_read_headers(context, sock, response, err);

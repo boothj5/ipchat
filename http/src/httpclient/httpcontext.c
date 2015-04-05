@@ -8,7 +8,7 @@
 HttpContext
 httpcontext_create(void)
 {
-    HttpContext context = malloc(sizeof(HttpContext));
+    HttpContext context = malloc(sizeof(struct httpcontext_t));
     context->debug = FALSE;
     context->read_timeout_ms = 0;
 

@@ -15,6 +15,12 @@ httpresponse_status(HttpResponse response)
 }
 
 char*
+httpresponse_status_message(HttpResponse response)
+{
+    return response->status_msg;
+}
+
+char*
 httpresponse_body(HttpResponse response)
 {
     return response->body;

@@ -4,6 +4,7 @@
 struct httpresponse_t {
     char *proto;
     int status;
+    char *status_msg;
     GHashTable *headers;
     char *body;
 };

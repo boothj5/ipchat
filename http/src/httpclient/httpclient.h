@@ -39,6 +39,7 @@ void httprequest_addheader(HttpRequest request, const char * const key, const ch
 HttpResponse httprequest_perform(HttpContext ctx, HttpRequest request, request_err_t *err);
 
 int httpresponse_status(HttpResponse response);
+char* httpresponse_status_message(HttpResponse response);
 char* httpresponse_body(HttpResponse response);
 GHashTable* httpresponse_headers(HttpResponse response);
 

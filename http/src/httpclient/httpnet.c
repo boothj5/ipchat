@@ -123,6 +123,7 @@ httpnet_read_headers(HttpContext context, int sock, HttpResponse response, reque
     }
 
     int status = 0;
+    char *status_msg = NULL;
     GHashTable *headers_ht = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
 
     if (header_stream->len > 0) {
@@ -131,8 +132,14 @@ httpnet_read_headers(HttpContext context, int sock, HttpResponse response, reque
         // protocol line
         char *proto_line = lines[0];
         if (context->debug) printf("\nPROTO LINE: %s\n", proto_line);
-        gchar **proto_chunks = g_strsplit(proto_line, " ", -1);
+        gchar **proto_chunks = g_strsplit(proto_line, " ", 3);
+
         status = (int) strtol(proto_chunks[1], NULL, 10);
+        if (proto_chunks[2]) {
+            status_msg = strdup(proto_chunks[2]);
+        }
+
+        g_strfreev(proto_chunks);
 
         // headers
         int count = 1;
@@ -151,6 +158,7 @@ httpnet_read_headers(HttpContext context, int sock, HttpResponse response, reque
     g_string_free(header_stream, TRUE);
 
     response->status = status;
+    response->status_msg = status_msg;
     response->headers = headers_ht;
 
     return TRUE;

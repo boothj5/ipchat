@@ -70,8 +70,13 @@ main(int argc, char *argv[])
     printf("\n");
 
     int status = httpresponse_status(response);
+    printf("Status code    : %d\n", status);
 
-    printf("Status: %d\n\n", status);
+    char *status_message = httpresponse_status_message(response);
+    if (status_message) {
+        printf("Status message : %s\n", status_message);
+    }
+    printf("\n");
 
     GHashTable *headers = httpresponse_headers(response);
     GList *keys = g_hash_table_get_keys(headers);
