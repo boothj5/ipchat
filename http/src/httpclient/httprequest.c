@@ -199,7 +199,7 @@ httprequest_perform(HttpContext context, HttpRequest request, request_err_t *err
 
     free(req);
 
-    int bufsize = 32;
+    int bufsize = 100;
 
     char buf[bufsize+1];
     memset(buf, 0, sizeof(buf));
@@ -207,13 +207,13 @@ httprequest_perform(HttpContext context, HttpRequest request, request_err_t *err
     GString *header_stream = g_string_new("");
 
     gboolean headers_read = FALSE;
-    while ((res = recv(sock, buf, bufsize, 0)) > 0 && !headers_read) {
-//        if (context->debug) {
-//            char *packet = strndup((char *)buf, res);
-//            packet[res] = '\0';
-//            printf("\n---PACKET START---\n%s---PAKCET END---\n", packet);
-//            free(packet);
-//        }
+    while (!headers_read && ((res = recv(sock, buf, bufsize, 0)) > 0)) {
+        if (context->debug) {
+            char *packet = strndup((char *)buf, res);
+            packet[res] = '\0';
+            printf("\n---PACKET START---\n%s---PAKCET END---\n", packet);
+            free(packet);
+        }
 
         g_string_append_len(header_stream, buf, res);
         if (g_strstr_len(header_stream->str, -1, "\r\n\r\n")) headers_read = TRUE;
@@ -256,33 +256,26 @@ httprequest_perform(HttpContext context, HttpRequest request, request_err_t *err
     }
 
     GString *body_stream = g_string_new(headers_end + 4);
+
     g_string_free(header_stream, TRUE);
 
     if (g_hash_table_lookup(headers_ht, "Content-Length")) {
         int content_length = (int) strtol(g_hash_table_lookup(headers_ht, "Content-Length"), NULL, 10);
         if (content_length > 0) {
-            printf("\nCONTENT-LENGTH : %d", content_length);
-            printf("\nALREADY READ   : %lu", body_stream->len);
             int remaining = content_length - body_stream->len;
             if (bufsize > remaining) bufsize = remaining;
-            printf("\nREMAINING      : %d", remaining);
-            printf("\nINIT BUFSIZE   : %d\n", bufsize);
 
             while (remaining > 0 && ((res = recv(sock, buf, bufsize, 0)) > 0)) {
-//                if (context->debug) {
-//                    char *packet = strndup((char *)buf, res);
-//                    packet[res] = '\0';
-//                    printf("\n---PACKET START---\n%s---PAKCET END---\n", packet);
-//                    free(packet);
-//                }
+                if (context->debug) {
+                    char *packet = strndup((char *)buf, res);
+                    packet[res] = '\0';
+                    printf("\n---PACKET START---\n%s---PAKCET END---\n", packet);
+                    free(packet);
+                }
 
                 g_string_append_len(body_stream, buf, res);
-                printf("\nREAD         : %d", res);
-                printf("\nTOTAL READ   : %lu", body_stream->len);
                 remaining = content_length - body_stream->len;
-                printf("\nREM          : %d", remaining);
                 if (bufsize > remaining) bufsize = remaining;
-                printf("\nBUFSIZE      : %d\n", bufsize);
                 memset(buf, 0, sizeof(buf));
             }
 
@@ -296,9 +289,6 @@ httprequest_perform(HttpContext context, HttpRequest request, request_err_t *err
             }
         }
     }
-
-    printf("\nBODY LEN: %lu\n", body_stream->len);
-    printf("\n---BODY---%s---BODY---\n", body_stream->str);
 
     close(sock);
 
