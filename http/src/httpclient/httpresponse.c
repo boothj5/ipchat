@@ -6,6 +6,7 @@
 #include <glib.h>
 
 #include "httpclient.h"
+#include "httprequest.h"
 #include "httpresponse.h"
 
 int
@@ -20,10 +21,26 @@ httpresponse_status_message(HttpResponse response)
     return response->status_msg;
 }
 
-GByteArray*
-httpresponse_body(HttpResponse response)
+char*
+httpresponse_body_to_file(HttpResponse response)
 {
-    return response->body;
+    char *last_slash = g_strrstr(response->url->path, "/");
+
+    char *filename = NULL;
+    if (last_slash && g_strcmp0(last_slash + 1, "\0") != 0) {
+        filename = strdup(last_slash + 1);
+    } else {
+        filename = strdup("body.out");
+    }
+
+    FILE *f = fopen(filename, "wb");
+    int i;
+    for (i = 0; i < response->body->len; i++) {
+        fwrite(&response->body->data[i], sizeof(unsigned char), 1, f);
+    }
+    fclose(f);
+
+    return filename;
 }
 
 char*

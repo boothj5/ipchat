@@ -24,6 +24,8 @@ http/cmdline
 http/src/cmdline.o
 http/image
 http/src/image.o
+http/download
+http/src/download.o
 
 
 # autoconf files

@@ -42,7 +42,7 @@ main(int argc, char *argv[])
 
     HttpContext ctx = httpcontext_create();
     httpcontext_debug(ctx, FALSE);
-    httpcontext_read_timeout(ctx, 1000);
+    httpcontext_read_timeout(ctx, 3000);
 
     request_err_t r_err;
     HttpRequest request = httprequest_create(arg_url, "GET", &r_err);
@@ -83,13 +83,12 @@ main(int argc, char *argv[])
         printf("\n");
     }
 
-    GByteArray *bytes = httpresponse_body(response);
-    FILE *f = fopen("worked.png", "wb");
-    int i;
-    for (i = 0; i < bytes->len; i++) {
-        fwrite(&bytes->data[i], sizeof(unsigned char), 1, f);
+    if (status == 200) {
+        char *filename = httpresponse_body_to_file(response);
+        printf("Saved to file: %s\n", filename);
+    } else {
+        printf("Failed to download.\n");
     }
-    fclose(f);
 
     return 0;
 }

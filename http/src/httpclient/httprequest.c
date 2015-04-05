@@ -73,6 +73,21 @@ _url_parse(char *url_s, request_err_t *err)
     return url;
 }
 
+HttpUrl*
+_url_copy(HttpUrl *url)
+{
+    if (url) {
+        HttpUrl *result = malloc(sizeof(struct httpurl_t));
+        result->scheme = strdup(url->scheme);
+        result->host = strdup(url->host);
+        result->port = url->port;
+        result->path = strdup(url->path);
+        return result;
+    } else {
+        return NULL;
+    }
+}
+
 void
 httprequest_addheader(HttpRequest request, const char * const key, const char *const val)
 {
@@ -118,6 +133,7 @@ httprequest_perform(HttpContext context, HttpRequest request, request_err_t *err
 
     // read response
     HttpResponse response = malloc(sizeof(struct httpresponse_t));
+    response->url = _url_copy(request->url);
 
     // read headers
     gboolean headers_read = httpnet_read_headers(context, sock, response, err);
