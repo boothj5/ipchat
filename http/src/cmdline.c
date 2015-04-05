@@ -6,12 +6,11 @@
 #include "httpclient/httpclient.h"
 
 gboolean
-_validate_args(int argc, char *argv[], char **arg_url, char **arg_method)
+_validate_args(int argc, char *argv[], char **arg_url)
 {
     GOptionEntry entries[] =
     {
         { "url", 'u', 0, G_OPTION_ARG_STRING, arg_url, "URL", NULL },
-        { "method", 'm', 0, G_OPTION_ARG_STRING, arg_method, "method", NULL },
         { NULL }
     };
 
@@ -31,11 +30,6 @@ _validate_args(int argc, char *argv[], char **arg_url, char **arg_method)
         return FALSE;
     }
 
-    if (!*arg_method) {
-        printf("You must specify a method\n");
-        return FALSE;
-    }
-
     return TRUE;
 }
 
@@ -43,16 +37,15 @@ int
 main(int argc, char *argv[])
 {
     char *arg_url = NULL;
-    char *arg_method = NULL;
 
-    if (!_validate_args(argc, argv, &arg_url, &arg_method)) return 1;
+    if (!_validate_args(argc, argv, &arg_url)) return 1;
 
     HttpContext ctx = httpcontext_create();
     httpcontext_debug(ctx, FALSE);
     httpcontext_read_timeout(ctx, 1000);
 
     request_err_t r_err;
-    HttpRequest request = httprequest_create(arg_url, arg_method, &r_err);
+    HttpRequest request = httprequest_create(arg_url, "GET", &r_err);
     if (!request) {
         http_error("Error creating request", r_err);
         return 1;
