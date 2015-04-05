@@ -189,6 +189,7 @@ httpnet_read_body(HttpContext context, int sock, HttpResponse response, request_
             if (context->debug) printf("\nGZIPPED LEN: %d\n", body_stream->len);
 
             char inflated[BUFSIZ+1];
+            memset(inflated, 0, BUFSIZ+1);
 
             z_stream infstream;
             infstream.zalloc = Z_NULL;
