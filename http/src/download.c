@@ -86,6 +86,20 @@ main(int argc, char *argv[])
     if (status == 200) {
         char *filename = httpresponse_body_to_file(response);
         printf("Saved to file: %s\n", filename);
+
+        char *content_type = g_hash_table_lookup(headers, "Content-Type");
+        if (content_type && g_str_has_prefix(content_type, "image/"))
+        {
+            GString *command = g_string_new("eog ");
+            g_string_append(command, filename);
+            g_string_append(command, " ");
+            g_string_append(command, "> /dev/null 2>&1");
+
+            int res = system(command->str);
+            if (res == -1) printf("Failed to open image.\n");
+
+            g_string_free(command, TRUE);
+        }
     } else {
         printf("Failed to download.\n");
     }
