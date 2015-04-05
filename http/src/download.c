@@ -3,6 +3,7 @@
 
 #include <glib.h>
 
+#include "config.h"
 #include "httpclient/httpclient.h"
 
 gboolean
@@ -90,7 +91,11 @@ main(int argc, char *argv[])
         char *content_type = g_hash_table_lookup(headers, "Content-Type");
         if (content_type && g_str_has_prefix(content_type, "image/"))
         {
+#ifdef PLATFORM_OSX
+            GString *command = g_string_new("open ");
+#else
             GString *command = g_string_new("eog ");
+#endif
             g_string_append(command, filename);
             g_string_append(command, " ");
             g_string_append(command, "> /dev/null 2>&1");

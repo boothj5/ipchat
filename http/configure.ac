@@ -11,6 +11,15 @@ AM_INIT_AUTOMAKE([foreign subdir-objects])
 ### Checks for programs.
 AC_PROG_CC
 
+AC_CANONICAL_HOST
+PLATFORM="unknown"
+AS_CASE([$host_os],
+    [darwin*], [PLATFORM="osx"],
+    [PLATFORM="nix"])
+
+AS_IF([test "x$PLATFORM" = xosx],
+    [AC_DEFINE([PLATFORM_OSX], [1], [OSx])])
+
 PKG_CHECK_MODULES([glib], [glib-2.0 >= 2.26], [],
     [AC_MSG_ERROR([glib 2.26 or higher is required])])
 
