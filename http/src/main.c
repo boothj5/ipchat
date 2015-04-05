@@ -48,8 +48,8 @@ main(int argc, char *argv[])
     if (!_validate_args(argc, argv, &arg_url, &arg_method)) return 1;
 
     HttpContext ctx = httpcontext_create();
-    httpcontext_debug(ctx, FALSE);
-    httpcontext_read_timeout(ctx, 120000);
+    httpcontext_debug(ctx, TRUE);
+    httpcontext_read_timeout(ctx, 500);
 
     request_err_t r_err;
     HttpRequest request = httprequest_create(arg_url, arg_method, &r_err);
@@ -86,7 +86,7 @@ main(int argc, char *argv[])
 
     char *body = httpresponse_body(response);
     if (body) {
-        printf("Body:\n%s\n", body);
+        printf("Body:\n%s", body);
     }
 
     return 0;

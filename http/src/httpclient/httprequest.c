@@ -199,7 +199,9 @@ httprequest_perform(HttpContext context, HttpRequest request, request_err_t *err
 
     free(req);
 
-    int bufsize = 100;
+    HttpResponse response = malloc(sizeof(HttpResponse));
+
+    int bufsize = 1;
 
     char buf[bufsize+1];
     memset(buf, 0, sizeof(buf));
@@ -255,6 +257,9 @@ httprequest_perform(HttpContext context, HttpRequest request, request_err_t *err
         }
     }
 
+    response->status = status;
+    response->headers = headers_ht;
+
     GString *body_stream = g_string_new(headers_end + 4);
 
     g_string_free(header_stream, TRUE);
@@ -287,21 +292,19 @@ httprequest_perform(HttpContext context, HttpRequest request, request_err_t *err
                 }
                 return NULL;
             }
+            response->body = body_stream->str;
+        } else {
+            response->body = NULL;
         }
-    }
-
-    close(sock);
-
-    HttpResponse response = malloc(sizeof(HttpResponse));
-    response->status = status;
-    response->headers = headers_ht;
-    if (g_strcmp0(body_stream->str, "\0") != 0) {
-        response->body = body_stream->str;
+    } else if (g_strcmp0(g_hash_table_lookup(headers_ht, "Transfer-Encoding"), "chunked") == 0) {
+        // TODO handle chunked response
+        response->body = NULL;
     } else {
         response->body = NULL;
     }
-
     g_string_free(body_stream, FALSE);
+
+    close(sock);
 
     return response;
 }
