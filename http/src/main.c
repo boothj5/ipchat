@@ -49,7 +49,7 @@ main(int argc, char *argv[])
 
     HttpContext ctx = httpcontext_create();
     httpcontext_debug(ctx, FALSE);
-    httpcontext_read_timeout(ctx, 500);
+    httpcontext_read_timeout(ctx, 1000);
 
     request_err_t r_err;
     HttpRequest request = httprequest_create(arg_url, arg_method, &r_err);
