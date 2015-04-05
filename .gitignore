@@ -18,6 +18,7 @@ http/src/httpclient/httpcontext.o
 http/src/httpclient/httperr.o
 http/src/httpclient/httprequest.o
 http/src/httpclient/httpresponse.o
+http/src/httpclient/httpnet.o
 
 # autoconf files
 http/.deps/
