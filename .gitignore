@@ -22,6 +22,9 @@ http/src/httpclient/httpnet.o
 http/cmdline
 *.png
 http/src/cmdline.o
+http/image
+http/src/image.o
+
 
 # autoconf files
 http/.deps/

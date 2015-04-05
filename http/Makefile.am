@@ -6,5 +6,6 @@ library_sources = \
 	src/httpclient/httpresponse.c src/httpclient/httpresponse.h \
 	src/httpclient/httpnet.c src/httpclient/httpnet.h
 
-bin_PROGRAMS = cmdline
+bin_PROGRAMS = cmdline image
 cmdline_SOURCES = src/cmdline.c $(library_sources)
+image_SOURCES = src/image.c $(library_sources)
