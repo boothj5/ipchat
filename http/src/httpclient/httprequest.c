@@ -189,34 +189,39 @@ httprequest_perform(HttpContext context, HttpRequest request, request_err_t *err
 
     int sent = 0;
     while (sent < strlen(req)) {
-        int tmpres = send(sock, req+sent, strlen(req)-sent, 0);
-        if (tmpres == -1) {
+        int res = send(sock, req+sent, strlen(req)-sent, 0);
+        if (res == -1) {
             *err = SOCK_SEND_FAILED;
             return NULL;
         }
-        sent += tmpres;
+        sent += res;
     }
 
     free(req);
 
-    unsigned char buf[BUFSIZ+1];
+    int bufsize = 32;
+
+    char buf[bufsize+1];
     memset(buf, 0, sizeof(buf));
-    int tmpres;
-    GByteArray *res_buf = g_byte_array_new();
+    int res;
+    GString *header_stream = g_string_new("");
 
-    while ((tmpres = recv(sock, buf, BUFSIZ, 0)) > 0) {
-        if (context->debug) {
-            char *packet = strndup((char *)buf, tmpres);
-            packet[tmpres] = '\0';
-            printf("\n---PACKET START---\n%s---PAKCET END---\n", packet);
-            free(packet);
-        }
+    gboolean headers_read = FALSE;
+    while ((res = recv(sock, buf, bufsize, 0)) > 0 && !headers_read) {
+//        if (context->debug) {
+//            char *packet = strndup((char *)buf, res);
+//            packet[res] = '\0';
+//            printf("\n---PACKET START---\n%s---PAKCET END---\n", packet);
+//            free(packet);
+//        }
 
-        g_byte_array_append(res_buf, buf, tmpres);
-        memset(buf, 0, tmpres);
+        g_string_append_len(header_stream, buf, res);
+        if (g_strstr_len(header_stream->str, -1, "\r\n\r\n")) headers_read = TRUE;
+
+        memset(buf, 0, sizeof(buf));
     }
 
-    if (tmpres < 0) {
+    if (res < 0) {
         if (errno == EAGAIN || errno == EWOULDBLOCK) {
             *err = SOCK_TIMEOUT;
         } else {
@@ -225,14 +230,88 @@ httprequest_perform(HttpContext context, HttpRequest request, request_err_t *err
         return NULL;
     }
 
-    close(sock);
+    int status = 0;
+    GHashTable *headers_ht = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
 
-    HttpResponse response = httpresponse_parse(context, (char *)res_buf->data, err);
-    if (!response) {
-        return NULL;
+    char *headers_end = g_strstr_len(header_stream->str, -1, "\r\n\r\n");
+    if (headers_end) {
+        gchar *head = g_strndup(header_stream->str, headers_end - header_stream->str);
+        gchar **headers = g_strsplit(head, "\r\n", -1);
+
+        // protocol line
+        char *proto_line = headers[0];
+        gchar **proto_chunks = g_strsplit(proto_line, " ", -1);
+        status = (int) strtol(proto_chunks[1], NULL, 10);
+
+        // headers
+        int count = 1;
+        while (count < g_strv_length(headers)) {
+            gchar **header_chunks = g_strsplit(headers[count++], ":", 2);
+            char *header_key = strdup(header_chunks[0]);
+            char *header_val = strdup(header_chunks[1]);
+            g_strstrip(header_key);
+            g_strstrip(header_val);
+            g_hash_table_replace(headers_ht, header_key, header_val);
+        }
     }
 
-    g_byte_array_free(res_buf, TRUE);
+    GString *body_stream = g_string_new(headers_end + 4);
+    g_string_free(header_stream, TRUE);
+
+    if (g_hash_table_lookup(headers_ht, "Content-Length")) {
+        int content_length = (int) strtol(g_hash_table_lookup(headers_ht, "Content-Length"), NULL, 10);
+        if (content_length > 0) {
+            printf("\nCONTENT-LENGTH : %d", content_length);
+            printf("\nALREADY READ   : %lu", body_stream->len);
+            int remaining = content_length - body_stream->len;
+            if (bufsize > remaining) bufsize = remaining;
+            printf("\nREMAINING      : %d", remaining);
+            printf("\nINIT BUFSIZE   : %d\n", bufsize);
+
+            while (remaining > 0 && ((res = recv(sock, buf, bufsize, 0)) > 0)) {
+//                if (context->debug) {
+//                    char *packet = strndup((char *)buf, res);
+//                    packet[res] = '\0';
+//                    printf("\n---PACKET START---\n%s---PAKCET END---\n", packet);
+//                    free(packet);
+//                }
+
+                g_string_append_len(body_stream, buf, res);
+                printf("\nREAD         : %d", res);
+                printf("\nTOTAL READ   : %lu", body_stream->len);
+                remaining = content_length - body_stream->len;
+                printf("\nREM          : %d", remaining);
+                if (bufsize > remaining) bufsize = remaining;
+                printf("\nBUFSIZE      : %d\n", bufsize);
+                memset(buf, 0, sizeof(buf));
+            }
+
+            if (res < 0) {
+                if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                    *err = SOCK_TIMEOUT;
+                } else {
+                    *err = SOCK_RECV_FAILED;
+                }
+                return NULL;
+            }
+        }
+    }
+
+    printf("\nBODY LEN: %lu\n", body_stream->len);
+    printf("\n---BODY---%s---BODY---\n", body_stream->str);
+
+    close(sock);
+
+    HttpResponse response = malloc(sizeof(HttpResponse));
+    response->status = status;
+    response->headers = headers_ht;
+    if (g_strcmp0(body_stream->str, "\0") != 0) {
+        response->body = body_stream->str;
+    } else {
+        response->body = NULL;
+    }
+
+    g_string_free(body_stream, FALSE);
 
     return response;
 }

@@ -85,7 +85,9 @@ main(int argc, char *argv[])
     }
 
     char *body = httpresponse_body(response);
-    printf("Body:\n%s\n", body);
+    if (body) {
+        printf("Body:\n%s\n", body);
+    }
 
     return 0;
 }
