@@ -5,6 +5,8 @@
 #include <netdb.h>
 #include <errno.h>
 
+#include <zlib.h>
+
 #include "httpclient.h"
 #include "httprequest.h"
 #include "httpresponse.h"
@@ -128,6 +130,7 @@ httpnet_read_headers(HttpContext context, int sock, HttpResponse response, reque
 
         // protocol line
         char *proto_line = lines[0];
+        if (context->debug) printf("\nPROTO LINE: %s\n", proto_line);
         gchar **proto_chunks = g_strsplit(proto_line, " ", -1);
         status = (int) strtol(proto_chunks[1], NULL, 10);
 
@@ -141,6 +144,7 @@ httpnet_read_headers(HttpContext context, int sock, HttpResponse response, reque
                 g_strstrip(header_key);
                 g_strstrip(header_val);
                 g_hash_table_replace(headers_ht, header_key, header_val);
+                if (context->debug) printf("HEADER: %s: %s\n", header_key, header_val);
             }
         }
     }
@@ -155,8 +159,58 @@ httpnet_read_headers(HttpContext context, int sock, HttpResponse response, reque
 gboolean
 httpnet_read_body(HttpContext context, int sock, HttpResponse response, request_err_t *err)
 {
+    // Content-Encoding gzip and Content-Length provided
+    if ((g_strcmp0(g_hash_table_lookup(response->headers, "Content-Encoding"), "gzip") == 0)
+        && g_hash_table_lookup(response->headers, "Content-Length")) {
+
+        int content_length = (int) strtol(g_hash_table_lookup(response->headers, "Content-Length"), NULL, 10);
+        if (content_length > 0) {
+            GByteArray *body_stream = g_byte_array_new();
+            int res = 0;
+            int bufsize = BUFSIZ;
+            unsigned char content_buf[bufsize+1];
+            memset(content_buf, 0, sizeof(content_buf));
+
+            int remaining = content_length;
+            if (remaining < bufsize) bufsize = remaining;
+            while (remaining > 0 && ((res = recv(sock, content_buf, bufsize, 0)) > 0)) {
+                g_byte_array_append(body_stream, content_buf, res);
+                remaining = content_length - body_stream->len;
+                if (bufsize > remaining) bufsize = remaining;
+                memset(content_buf, 0, sizeof(content_buf));
+            }
+
+            if (res < 0) {
+                if (errno == EAGAIN || errno == EWOULDBLOCK) *err = SOCK_TIMEOUT;
+                else *err = SOCK_RECV_FAILED;
+                return FALSE;
+            }
+
+            if (context->debug) printf("\nGZIPPED LEN: %d\n", body_stream->len);
+
+            char inflated[BUFSIZ+1];
+
+            z_stream infstream;
+            infstream.zalloc = Z_NULL;
+            infstream.zfree = Z_NULL;
+            infstream.opaque = Z_NULL;
+            infstream.avail_in = (uInt)body_stream->len;
+            infstream.next_in = (Bytef *)body_stream->data;
+            infstream.avail_out = (uInt)sizeof(inflated);
+            infstream.next_out = (Bytef *)inflated;
+
+            inflateInit2(&infstream, 16+MAX_WBITS);
+            inflate(&infstream, Z_NO_FLUSH);
+            inflateEnd(&infstream);
+
+            response->body = strdup((char*)inflated);
+            g_byte_array_free(body_stream, TRUE);
+        } else {
+            response->body = NULL;
+        }
+
     // Content-Length header provided, attempt to read whole body
-    if (g_hash_table_lookup(response->headers, "Content-Length")) {
+    } else if (g_hash_table_lookup(response->headers, "Content-Length")) {
         int content_length = (int) strtol(g_hash_table_lookup(response->headers, "Content-Length"), NULL, 10);
         if (content_length > 0) {
             GString *body_stream = g_string_new("");

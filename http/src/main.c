@@ -59,6 +59,7 @@ main(int argc, char *argv[])
     }
 
     httprequest_addheader(request, "User-Agent", "HTTPCLIENT 1.0");
+    httprequest_addheader(request, "Accept-Encoding", "gzip");
 
     HttpResponse response = httprequest_perform(ctx, request, &r_err);
     if (!response) {

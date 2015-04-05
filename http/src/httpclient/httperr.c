@@ -48,6 +48,18 @@ http_error(char *prefix, request_err_t err)
         case RESP_ERROR_PARSING_CHUNK:
             g_string_append(full_msg, "Error parsing chunked body.");
             break;
+        case GZIP_BUFFER_INSUFFICIENT:
+            g_string_append(full_msg, "GZIP buffer insufficient.");
+            break;
+        case GZIP_INSUFFICIENT_MEMORY:
+            g_string_append(full_msg, "GZIP failed due to insufficient memory.");
+            break;
+        case GZIP_CORRUPT:
+            g_string_append(full_msg, "GZIP contents corrupt.");
+            break;
+        case GZIP_FAILED:
+            g_string_append(full_msg, "GZIP inflate failed for unknown reason.");
+            break;
         default:
             g_string_append(full_msg, "unknown.");
             break;
