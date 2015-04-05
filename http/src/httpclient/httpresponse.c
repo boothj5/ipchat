@@ -20,10 +20,21 @@ httpresponse_status_message(HttpResponse response)
     return response->status_msg;
 }
 
-char*
+GByteArray*
 httpresponse_body(HttpResponse response)
 {
     return response->body;
+}
+
+char*
+httpresponse_body_as_string(HttpResponse response)
+{
+    if (response->body) {
+        char *body = strndup((char *)response->body->data, response->body->len);
+        return body;
+    } else {
+        return NULL;
+    }
 }
 
 GHashTable*

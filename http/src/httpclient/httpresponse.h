@@ -6,7 +6,7 @@ struct httpresponse_t {
     int status;
     char *status_msg;
     GHashTable *headers;
-    char *body;
+    GByteArray *body;
 };
 
 #endif

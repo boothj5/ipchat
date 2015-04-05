@@ -212,7 +212,9 @@ httpnet_read_body(HttpContext context, int sock, HttpResponse response, request_
             inflate(&infstream, Z_NO_FLUSH);
             inflateEnd(&infstream);
 
-            response->body = strdup((char*)inflated);
+            GByteArray *body = g_byte_array_new();
+            g_byte_array_append(body, (unsigned char*)inflated, strlen(inflated) + 1);
+            response->body = body;
             g_byte_array_free(body_stream, TRUE);
         } else {
             response->body = NULL;
@@ -222,16 +224,16 @@ httpnet_read_body(HttpContext context, int sock, HttpResponse response, request_
     } else if (g_hash_table_lookup(response->headers, "Content-Length")) {
         int content_length = (int) strtol(g_hash_table_lookup(response->headers, "Content-Length"), NULL, 10);
         if (content_length > 0) {
-            GString *body_stream = g_string_new("");
+            GByteArray *body_stream = g_byte_array_new();
             int res = 0;
             int bufsize = BUFSIZ;
-            char content_buf[bufsize+1];
+            unsigned char content_buf[bufsize+1];
             memset(content_buf, 0, sizeof(content_buf));
 
             int remaining = content_length;
             if (remaining < bufsize) bufsize = remaining;
             while (remaining > 0 && ((res = recv(sock, content_buf, bufsize, 0)) > 0)) {
-                g_string_append_len(body_stream, content_buf, res);
+                g_byte_array_append(body_stream, content_buf, res);
                 remaining = content_length - body_stream->len;
                 if (bufsize > remaining) bufsize = remaining;
                 memset(content_buf, 0, sizeof(content_buf));
@@ -243,8 +245,7 @@ httpnet_read_body(HttpContext context, int sock, HttpResponse response, request_
                 return FALSE;
             }
 
-            response->body = body_stream->str;
-            g_string_free(body_stream, FALSE);
+            response->body = body_stream;
         } else {
             response->body = NULL;
         }
@@ -255,7 +256,7 @@ httpnet_read_body(HttpContext context, int sock, HttpResponse response, request_
         char len_content_buf[2];
         memset(len_content_buf, 0, sizeof(len_content_buf));
         GString *len_stream = g_string_new("");
-        GString *body_stream = g_string_new("");
+        GByteArray *body_stream = g_byte_array_new();
         gboolean cont = TRUE;
 
         // read one byte at a time
@@ -286,14 +287,14 @@ httpnet_read_body(HttpContext context, int sock, HttpResponse response, request_
                 int ch_res = 0;
                 int ch_total = 0;
                 int ch_bufsize = chunk_size;
-                char ch_content_buf[ch_bufsize+1];
+                unsigned char ch_content_buf[ch_bufsize+1];
                 memset(ch_content_buf, 0, sizeof(ch_content_buf));
                 int ch_remaining = chunk_size;
 
                 // read chunk
                 while (ch_remaining > 0 && ((ch_res = recv(sock, ch_content_buf, ch_bufsize, 0)) > 0)) {
                     ch_total += ch_res;
-                    g_string_append_len(body_stream, ch_content_buf, ch_res);
+                    g_byte_array_append(body_stream, ch_content_buf, ch_res);
                     ch_remaining = chunk_size - ch_total;
                     if (ch_bufsize > ch_remaining) ch_bufsize = ch_remaining;
                     memset(ch_content_buf, 0, sizeof(ch_content_buf));
@@ -326,8 +327,7 @@ httpnet_read_body(HttpContext context, int sock, HttpResponse response, request_
             memset(len_content_buf, 0, sizeof(len_content_buf));
         }
 
-        response->body = body_stream->str;
-        g_string_free(body_stream, FALSE);
+        response->body = body_stream;
 
     } else {
         response->body = NULL;

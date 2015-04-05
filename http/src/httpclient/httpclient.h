@@ -40,7 +40,8 @@ HttpResponse httprequest_perform(HttpContext ctx, HttpRequest request, request_e
 
 int httpresponse_status(HttpResponse response);
 char* httpresponse_status_message(HttpResponse response);
-char* httpresponse_body(HttpResponse response);
+GByteArray* httpresponse_body(HttpResponse response);
+char* httpresponse_body_as_string(HttpResponse response);
 GHashTable* httpresponse_headers(HttpResponse response);
 
 #endif

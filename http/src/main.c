@@ -90,9 +90,10 @@ main(int argc, char *argv[])
         printf("\n");
     }
 
-    char *body = httpresponse_body(response);
+    char *body = httpresponse_body_as_string(response);
     if (body) {
         printf("Body:\n%s\n", body);
+        free(body);
     }
 
     return 0;
