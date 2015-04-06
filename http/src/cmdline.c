@@ -89,13 +89,5 @@ main(int argc, char *argv[])
         free(body);
     }
 
-//    GByteArray *bytes = httpresponse_body(response);
-//    FILE *f = fopen("worked.png", "wb");
-//    int i;
-//    for (i = 0; i < bytes->len; i++) {
-//        fwrite(&bytes->data[i], sizeof(unsigned char), 1, f);
-//    }
-//    fclose(f);
-
     return 0;
 }
