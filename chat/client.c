@@ -14,6 +14,7 @@ int
 main(int argc, char *argv[])
 {
     char *hostname = NULL;
+    char *nickname = NULL;
     int port = 0;
     char ip[100];
     struct hostent *he = NULL;
@@ -25,6 +26,7 @@ main(int argc, char *argv[])
     {
         { "host", 'h', 0, G_OPTION_ARG_STRING, &hostname, "Server hostname or IP address", NULL },
         { "port", 'p', 0, G_OPTION_ARG_INT, &port, "Listen port", NULL },
+        { "nick", 'n', 0, G_OPTION_ARG_STRING, &nickname, "Nickname", NULL },
         { NULL }
     };
 
@@ -46,6 +48,11 @@ main(int argc, char *argv[])
 
     if (hostname == NULL) {
         printf("Use -h to provide a hostname or ip address.\n");
+        return 1;
+    }
+
+    if (nickname == NULL) {
+        printf("Use -n to provide a nickname.\n");
         return 1;
     }
 
@@ -97,9 +104,9 @@ main(int argc, char *argv[])
 
     int rows, cols;
     getmaxyx(stdscr, rows, cols);
-    WINDOW *outw = newwin(rows/2, cols, 0, 0);
+    WINDOW *outw = newwin(rows - 2, cols, 0, 0);
     scrollok(outw, TRUE);
-    WINDOW *inpw = newwin(rows/2-1, cols, rows/2, 0);
+    WINDOW *inpw = newwin(2, cols, rows - 2, 0);
     scrollok(inpw, TRUE);
     wtimeout(inpw, 20);
 
@@ -140,6 +147,20 @@ main(int argc, char *argv[])
             connected = 1;
         }
 
+        // register
+        if (connected == 1) {
+            GString *reg_msg = g_string_new(nickname);
+            g_string_append(reg_msg, "MSGEND");
+            int sent = 0;
+            int to_send = reg_msg->len;
+            char *marker = reg_msg->str;
+            while (to_send > 0 && ((sent = write(socket_desc, marker, to_send)) > 0)) {
+                to_send -= sent;
+                marker += sent;
+            }
+            g_string_free(reg_msg, TRUE);
+        }
+
         // main loop
         char input[1000];
         int len = 0;
@@ -153,6 +174,16 @@ main(int argc, char *argv[])
 
                     // quit
                     if (strcmp(input, "/quit") == 0) {
+                        if (connected == 1) {
+                            char *end_session_msg = "SESSIONEND";
+                            int sent = 0;
+                            int to_send = strlen(end_session_msg);
+                            char *marker = end_session_msg;
+                            while (to_send > 0 && ((sent = write(socket_desc, marker, to_send)) > 0)) {
+                                to_send -= sent;
+                                marker += sent;
+                            }
+                        }
                         break;
 
                     // send message
@@ -179,15 +210,28 @@ main(int argc, char *argv[])
             }
 
             // check for incoming messages from server
-            int read_size;
-            char *server_reply = malloc(sizeof(char) * 1000);
-            read_size = recv(socket_desc, server_reply, 1000, MSG_DONTWAIT);
-            if (read_size > 0) {
-                server_reply[read_size] = '\0';
-                wprintw(outw, "%s\n", server_reply);
-                wrefresh(outw);
+            int read_size = 0;
+            char buf[2];
+            memset(buf, 0, sizeof(buf));
+            gboolean term = FALSE;
+            GString *stream = g_string_new("");
+            while (!term && ((read_size = recv(socket_desc, buf, 1, MSG_DONTWAIT)) > 0)) {
+                g_string_append_len(stream, buf, read_size);
+                if (g_str_has_suffix(stream->str, "MSGEND")) term = TRUE;
+                memset(buf, 0, sizeof(buf));
             }
-            free(server_reply);
+            if (term) {
+                char *incoming = malloc(stream->len -  5);
+                strncpy(incoming, stream->str, stream->len - 6);
+                incoming[stream->len - 6] = '\0';
+
+                wprintw(outw, "%s\n", incoming);
+                wrefresh(outw);
+                free(incoming);
+            }
+
+            g_string_free(stream, TRUE);
+
             wrefresh(inpw);
         }
     }
