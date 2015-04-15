@@ -53,7 +53,6 @@ void* connection_handler(void *data)
 {
     ChatClient *client = (ChatClient *)data;
     int read_size;
-    char *client_message;
 
     // client loop
     while(1) {

@@ -1,3 +1,5 @@
+#include "config.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -6,7 +8,11 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <netdb.h>
+#ifdef HAVE_NCURSESW_NCURSES_H
+#include <ncursesw/ncurses.h>
+#elif HAVE_NCURSES_H
 #include <ncurses.h>
+#endif
 #include <fcntl.h>
 #include <glib.h>
 
