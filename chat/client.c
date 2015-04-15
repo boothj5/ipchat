@@ -19,7 +19,6 @@ main(int argc, char *argv[])
     char ip[100];
     struct hostent *he = NULL;
     struct in_addr **addr_list;
-    int connected = 0;
     gboolean ip_resolved = FALSE;
 
     GOptionEntry entries[] =
@@ -127,117 +126,111 @@ main(int argc, char *argv[])
 
     wprintw(outw, "Connecting to %s:%d...\n", ip, port);
 
-    int socket_desc;
-    socket_desc = socket(AF_INET, SOCK_STREAM, IPPROTO_IP); // ipv4, tcp, ip
-    if (socket_desc == -1) {
-        wprintw(outw, "Failed to create socket.\n");
-        wrefresh(outw);
-    } else {
-        struct sockaddr_in server;
-        server.sin_addr.s_addr = inet_addr(ip);
-        server.sin_family = AF_INET; // ipv4
-        server.sin_port = htons(port); // host to network byte order
-
-        if (connect(socket_desc, (struct sockaddr*)&server, sizeof(server)) < 0) {
-            wprintw(outw, "Failed to connect.\n");
-            wrefresh(outw);
-        } else {
-            wprintw(outw, "Connected successfully.\n");
-            wrefresh(outw);
-            connected = 1;
-        }
-
-        // register
-        if (connected == 1) {
-            GString *reg_msg = g_string_new(nickname);
-            g_string_append(reg_msg, "MSGEND");
-            int sent = 0;
-            int to_send = reg_msg->len;
-            char *marker = reg_msg->str;
-            while (to_send > 0 && ((sent = write(socket_desc, marker, to_send)) > 0)) {
-                to_send -= sent;
-                marker += sent;
-            }
-            g_string_free(reg_msg, TRUE);
-        }
-
-        // main loop
-        char input[1000];
-        int len = 0;
-        while (1) {
-            int ch = wgetch(inpw);
-            if (ch != ERR) {
-
-                // handle input
-                if (ch == '\n') {
-                    input[len] = '\0';
-
-                    // quit
-                    if (strcmp(input, "/quit") == 0) {
-                        if (connected == 1) {
-                            char *end_session_msg = "SESSIONEND";
-                            int sent = 0;
-                            int to_send = strlen(end_session_msg);
-                            char *marker = end_session_msg;
-                            while (to_send > 0 && ((sent = write(socket_desc, marker, to_send)) > 0)) {
-                                to_send -= sent;
-                                marker += sent;
-                            }
-                        }
-                        break;
-
-                    // send message
-                    } else if (strlen(input) > 0) {
-                        if (connected == 1) {
-                            GString *terminated_msg = g_string_new("");
-                            g_string_append_printf(terminated_msg, "%sMSGEND", input);
-                            wrefresh(outw);
-                            int sent = 0;
-                            int to_send = terminated_msg->len;
-                            char *marker = terminated_msg->str;
-                            while (to_send > 0 && ((sent = write(socket_desc, marker, to_send)) > 0)) {
-                                to_send -= sent;
-                                marker += sent;
-                            }
-                            g_string_free(terminated_msg, TRUE);
-                        }
-                    }
-                    wclear(inpw);
-                    len = 0;
-                } else {
-                    input[len++] = ch;
-                }
-            }
-
-            // check for incoming messages from server
-            int read_size = 0;
-            char buf[2];
-            memset(buf, 0, sizeof(buf));
-            gboolean term = FALSE;
-            GString *stream = g_string_new("");
-            while (!term && ((read_size = recv(socket_desc, buf, 1, MSG_DONTWAIT)) > 0)) {
-                g_string_append_len(stream, buf, read_size);
-                if (g_str_has_suffix(stream->str, "MSGEND")) term = TRUE;
-                memset(buf, 0, sizeof(buf));
-            }
-            if (term) {
-                char *incoming = malloc(stream->len -  5);
-                strncpy(incoming, stream->str, stream->len - 6);
-                incoming[stream->len - 6] = '\0';
-
-                wprintw(outw, "%s\n", incoming);
-                wrefresh(outw);
-                free(incoming);
-            }
-
-            g_string_free(stream, TRUE);
-
-            wrefresh(inpw);
-        }
+    int srv_socket;
+    srv_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_IP); // ipv4, tcp, ip
+    if (srv_socket == -1) {
+        endwin();
+        printf("Failed to create socket.\n");
+        return 1;
     }
 
-    close(socket_desc);
+    struct sockaddr_in server;
+    server.sin_addr.s_addr = inet_addr(ip);
+    server.sin_family = AF_INET; // ipv4
+    server.sin_port = htons(port); // host to network byte order
 
+    if (connect(srv_socket, (struct sockaddr*)&server, sizeof(server)) < 0) {
+        endwin();
+        printf("Failed to connect.\n");
+        return 1;
+    }
+
+    wprintw(outw, "Connected successfully.\n");
+    wrefresh(outw);
+
+    // register
+    GString *reg_msg = g_string_new(nickname);
+    g_string_append(reg_msg, "MSGEND");
+    int sent = 0;
+    int to_send = reg_msg->len;
+    char *marker = reg_msg->str;
+    while (to_send > 0 && ((sent = write(srv_socket, marker, to_send)) > 0)) {
+        to_send -= sent;
+        marker += sent;
+    }
+    g_string_free(reg_msg, TRUE);
+
+    // main loop
+    char input[1000];
+    int len = 0;
+    while (1) {
+        int ch = wgetch(inpw);
+        if (ch != ERR) {
+
+            // handle input
+            if (ch == '\n') {
+                input[len] = '\0';
+
+                // quit
+                if (strcmp(input, "/quit") == 0) {
+                    char *end_session_msg = "SESSIONEND";
+                    int sent = 0;
+                    int to_send = strlen(end_session_msg);
+                    char *marker = end_session_msg;
+                    while (to_send > 0 && ((sent = write(srv_socket, marker, to_send)) > 0)) {
+                        to_send -= sent;
+                        marker += sent;
+                    }
+                    break;
+
+                // send message
+                } else if (strlen(input) > 0) {
+                    GString *terminated_msg = g_string_new("");
+                    g_string_append_printf(terminated_msg, "%sMSGEND", input);
+                    wrefresh(outw);
+                    int sent = 0;
+                    int to_send = terminated_msg->len;
+                    char *marker = terminated_msg->str;
+                    while (to_send > 0 && ((sent = write(srv_socket, marker, to_send)) > 0)) {
+                        to_send -= sent;
+                        marker += sent;
+                    }
+                    g_string_free(terminated_msg, TRUE);
+                }
+                wclear(inpw);
+                len = 0;
+            } else {
+                input[len++] = ch;
+            }
+        }
+
+        // check for incoming messages from server
+        int read_size = 0;
+        char buf[2];
+        memset(buf, 0, sizeof(buf));
+        gboolean term = FALSE;
+        GString *stream = g_string_new("");
+        while (!term && ((read_size = recv(srv_socket, buf, 1, MSG_DONTWAIT)) > 0)) {
+            g_string_append_len(stream, buf, read_size);
+            if (g_str_has_suffix(stream->str, "MSGEND")) term = TRUE;
+            memset(buf, 0, sizeof(buf));
+        }
+        if (term) {
+            char *incoming = malloc(stream->len -  5);
+            strncpy(incoming, stream->str, stream->len - 6);
+            incoming[stream->len - 6] = '\0';
+
+            wprintw(outw, "%s\n", incoming);
+            wrefresh(outw);
+            free(incoming);
+        }
+
+        g_string_free(stream, TRUE);
+
+        wrefresh(inpw);
+    }
+
+    close(srv_socket);
     endwin();
 
     return 0;
