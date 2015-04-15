@@ -25,16 +25,23 @@ void* connection_handler(void *data)
     char *client_message;
 
     while(1) {
+        char buf[2];
+        memset(buf, 0, sizeof(buf));
 
         // listen for from client
-        client_message = malloc(sizeof(char) * 2000);
+        gboolean term = FALSE;
+        GString *stream = g_string_new("");
         errno = 0;
-        read_size = recv(client->sock, client_message, 2000 , 0);
+        while (!term && ((read_size = recv(client->sock, buf, 1, 0)) > 0)) {
+            g_string_append_len(stream, buf, read_size);
+            if (g_str_has_suffix(stream->str, "MSGEND")) term = TRUE;
+            memset(buf, 0, sizeof(buf));
+        }
 
         // error
         if (read_size == -1) {
             perror("Error receiving on connection");
-            free(client_message);
+            g_string_free(stream, TRUE);
 
             // remove client from list
             pthread_mutex_lock(&clients_lock);
@@ -57,7 +64,7 @@ void* connection_handler(void *data)
         // client closed
         } else if (read_size == 0) {
             printf("%s:%d - Client disconnected.\n", client->ip, client->port);
-            free(client_message);
+            g_string_free(stream, TRUE);
 
             // remove client from list
             pthread_mutex_lock(&clients_lock);
@@ -77,10 +84,11 @@ void* connection_handler(void *data)
 
         // successful recv
         } else {
-            char incoming[2000];
-            strncpy(incoming, client_message, 2000);
-            incoming[read_size] = '\0';
-            
+            char *incoming = malloc(stream->len -  5);
+            strncpy(incoming, stream->str, stream->len - 6);
+            incoming[stream->len - 6] = '\0';
+            g_string_free(stream, TRUE);
+
             printf("%s:%d - Received: %s\n", client->ip, client->port, incoming);
             fflush(stdout);
 
@@ -89,11 +97,20 @@ void* connection_handler(void *data)
             GSList *curr = clients;
             while (curr != NULL) {
                 ThreadData *participant = curr->data;
-                write(participant->sock, client_message, read_size);
+                printf("%s:%d - Sent: %s\n", participant->ip, participant->port, incoming);
+
+                int sent = 0;
+                int to_send = strlen(incoming);
+                char *marker = incoming;
+                while (to_send > 0 && ((sent = write(participant->sock, marker, to_send)) > 0)) {
+                    to_send -= sent;
+                    marker += sent;
+                }
+
                 curr = g_slist_next(curr);
             }
             pthread_mutex_unlock(&clients_lock);
-            free(client_message);
+            free(incoming);
         }
     }
 
@@ -128,7 +145,8 @@ int main(int argc , char *argv[])
         port = 6660;
     }
 
-    int socket_desc, client_socket, c, ret;
+    int listen_socket, client_socket;
+    int c, ret;
     struct sockaddr_in server_addr, client_addr;
 
     if (argc == 2) {
@@ -136,30 +154,33 @@ int main(int argc , char *argv[])
     }
 
     printf("Starting on port: %d...\n", port);
-     
+
+    // create socket
     errno = 0;
-    socket_desc = socket(AF_INET, SOCK_STREAM, IPPROTO_IP); // ipv4, tcp, ip
-    if (socket_desc == -1) {
+    listen_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_IP); // ipv4, tcp, ip
+    if (listen_socket == -1) {
         perror("Could not create socket");
-	return 0;
+        return 0;
     }
-     
+
     server_addr.sin_family = AF_INET;
     server_addr.sin_addr.s_addr = INADDR_ANY;
     server_addr.sin_port = htons(port);
-     
+
+    // bind socket to port
     errno = 0;
-    ret = bind(socket_desc, (struct sockaddr *)&server_addr, sizeof(server_addr));
+    ret = bind(listen_socket, (struct sockaddr *)&server_addr, sizeof(server_addr));
     if (ret == -1) {
         perror("Bind failed");
-	return 0;
+        return 0;
     }
 
+    // set socket to listen mode
     errno = 0;
-    ret = listen(socket_desc, 20);
+    ret = listen(listen_socket, 5);
     if (ret == -1) {
         perror("Listen failed");
-	return 0;
+        return 0;
     }
     puts("Waiting for incoming connections...");
 
@@ -167,17 +188,18 @@ int main(int argc , char *argv[])
     printf("Connected clients: %d\n", g_slist_length(clients));
     pthread_mutex_unlock(&clients_lock);
 
+    // accept incoming client connections
     while (1) {
 
         // listen for new connections
         c = sizeof(struct sockaddr_in);
         errno = 0;
-        client_socket = accept(socket_desc, (struct sockaddr *)&client_addr, (socklen_t*)&c);
+        client_socket = accept(listen_socket, (struct sockaddr *)&client_addr, (socklen_t*)&c);
         if (client_socket == -1) {
             perror("Accept failed");
         }
 
-        // add new client
+        // create thread for each new client
         ThreadData *client = malloc(sizeof(ThreadData));
         client->ip = strdup(inet_ntoa(client_addr.sin_addr));
         client->port = ntohs(client_addr.sin_port);
@@ -198,6 +220,6 @@ int main(int argc , char *argv[])
         printf("Connected clients: %d\n", g_slist_length(clients));
         pthread_mutex_unlock(&clients_lock);
     }
- 
+
     return 0;
 }

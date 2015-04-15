@@ -6,7 +6,7 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <netdb.h>
-#include <ncursesw/ncurses.h>
+#include <ncurses.h>
 #include <fcntl.h>
 #include <glib.h>
 
@@ -140,18 +140,35 @@ main(int argc, char *argv[])
             connected = 1;
         }
 
+        // main loop
         char input[1000];
-        char len = 0;
+        int len = 0;
         while (1) {
             int ch = wgetch(inpw);
             if (ch != ERR) {
+
+                // handle input
                 if (ch == '\n') {
                     input[len] = '\0';
-                    if (strncmp(input, "/quit", 5) == 0) {
+
+                    // quit
+                    if (strcmp(input, "/quit") == 0) {
                         break;
+
+                    // send message
                     } else if (strlen(input) > 0) {
                         if (connected == 1) {
-                            write(socket_desc, input, strlen(input));
+                            GString *terminated_msg = g_string_new("");
+                            g_string_append_printf(terminated_msg, "%sMSGEND", input);
+                            wrefresh(outw);
+                            int sent = 0;
+                            int to_send = terminated_msg->len;
+                            char *marker = terminated_msg->str;
+                            while (to_send > 0 && ((sent = write(socket_desc, marker, to_send)) > 0)) {
+                                to_send -= sent;
+                                marker += sent;
+                            }
+                            g_string_free(terminated_msg, TRUE);
                         }
                     }
                     wclear(inpw);
@@ -161,6 +178,7 @@ main(int argc, char *argv[])
                 }
             }
 
+            // check for incoming messages from server
             int read_size;
             char *server_reply = malloc(sizeof(char) * 1000);
             read_size = recv(socket_desc, server_reply, 1000, MSG_DONTWAIT);
