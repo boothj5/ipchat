@@ -51,24 +51,19 @@ void* connection_handler(void *data)
 
         // registration
         } else if (action == PROTO_REGISTER) {
-            char *nickname = malloc(stream->len - (strlen(STR_REGISTER_END) -1));
-            strncpy(nickname, stream->str, stream->len - strlen(STR_REGISTER_END));
-            nickname[stream->len - strlen(STR_REGISTER_END)] = '\0';
-
+            char *nickname = proto_get_nickname(stream->str);
             printf("%s:%d - JOIN: %s\n", client->ip, client->port, nickname);
             clients_register(client, nickname);
             g_string_free(stream, TRUE);
+            free(nickname);
 
         // message
         } else if (action == PROTO_MESSAGE) {
-            char *incoming = malloc(stream->len - (strlen(STR_MESSAGE_END) -1));
-            strncpy(incoming, stream->str, stream->len - strlen(STR_MESSAGE_END));
-            incoming[stream->len - strlen(STR_MESSAGE_END)] = '\0';
-
-            printf("%s:%d - RECV: %s: %s\n", client->ip, client->port, client->nickname, incoming);
-            clients_broadcast_message(client->nickname, incoming);
+            char *message = proto_get_message(stream->str);
+            printf("%s:%d - RECV: %s: %s\n", client->ip, client->port, client->nickname, message);
+            clients_broadcast_message(client->nickname, message);
             g_string_free(stream, TRUE);
-            free(incoming);
+            free(message);
 
         } else {
             printf("Unknown protocol action.");

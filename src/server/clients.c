@@ -78,7 +78,7 @@ clients_print_total(void)
 void
 clients_register(ChatClient *client, char *nickname)
 {
-    client->nickname = nickname;
+    client->nickname = strdup(nickname);
 
     GString *msg = g_string_new("--> ");
     g_string_append(msg, nickname);

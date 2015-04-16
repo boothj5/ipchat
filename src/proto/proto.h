@@ -13,5 +13,7 @@ typedef enum {
 } proto_action_t;
 
 proto_action_t proto_get_action(char *stream);
+char* proto_get_message(char *stream);
+char* proto_get_nickname(char *stream);
 
 #endif

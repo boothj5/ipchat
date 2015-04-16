@@ -224,13 +224,10 @@ main(int argc, char *argv[])
             memset(buf, 0, sizeof(buf));
         }
         if (term) {
-            char *incoming = malloc(stream->len - (strlen(STR_MESSAGE_END) -1));
-            strncpy(incoming, stream->str, stream->len - strlen(STR_MESSAGE_END));
-            incoming[stream->len - strlen(STR_MESSAGE_END)] = '\0';
-
-            wprintw(outw, "%s\n", incoming);
+            char *message = proto_get_message(stream->str);
+            wprintw(outw, "%s\n", message);
             wrefresh(outw);
-            free(incoming);
+            free(message);
         }
 
         g_string_free(stream, TRUE);
