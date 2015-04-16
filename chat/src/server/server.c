@@ -30,17 +30,17 @@ ChatClient* client_new(struct sockaddr_in client_addr, int socket)
     return client;
 }
 
-void end_connection(ChatClient **client)
+void end_connection(ChatClient *client)
 {
     pthread_mutex_lock(&clients_lock);
     GSList *curr = clients;
     while (curr != NULL) {
-        if (curr->data == *client) {
+        if (curr->data == client) {
             clients = g_slist_remove_link(clients, curr);
-            free((*client)->ip);
-            free((*client)->nickname);
-            close((*client)->sock);
-            free(*client);
+            free(client->ip);
+            free(client->nickname);
+            close(client->sock);
+            free(client);
 
             break;
         }
@@ -76,14 +76,14 @@ void* connection_handler(void *data)
         if (read_size == -1) {
             perror("Error receiving on connection");
             g_string_free(stream, TRUE);
-            end_connection(&client);
+            end_connection(client);
             break;
 
         // client closed
         } else if (read_size == 0) {
             printf("%s:%d - Client disconnected.\n", client->ip, client->port);
             g_string_free(stream, TRUE);
-            end_connection(&client);
+            end_connection(client);
             break;
 
         // end session
@@ -119,7 +119,7 @@ void* connection_handler(void *data)
             g_string_free(stream, TRUE);
             g_string_free(quit_msg, TRUE);
             g_string_free(quit_msg_term, TRUE);
-            end_connection(&client);
+            end_connection(client);
             break;
 
         // registration
