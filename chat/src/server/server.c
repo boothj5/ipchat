@@ -36,11 +36,12 @@ void end_connection(ChatClient **client)
     GSList *curr = clients;
     while (curr != NULL) {
         if (curr->data == *client) {
-            pthread_mutex_lock(&clients_lock);
             clients = g_slist_remove_link(clients, curr);
-            pthread_mutex_unlock(&clients_lock);
             free((*client)->ip);
+            free((*client)->nickname);
+            close((*client)->sock);
             free(*client);
+
             break;
         }
         curr = g_slist_next(curr);
@@ -118,6 +119,8 @@ void* connection_handler(void *data)
             g_string_free(stream, TRUE);
             g_string_free(quit_msg, TRUE);
             g_string_free(quit_msg_term, TRUE);
+            end_connection(&client);
+            break;
 
         // registration
         } else if (!client->nickname) {
