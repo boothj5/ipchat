@@ -44,7 +44,7 @@ clients_add(ChatClient *client)
 }
 
 void
-print_client_num(void)
+clients_print_total(void)
 {
     pthread_mutex_lock(&clients_lock);
     printf("Connected clients: %d\n", g_slist_length(clients));
@@ -52,7 +52,7 @@ print_client_num(void)
 }
 
 void
-register_client(ChatClient *client, char *nickname)
+clients_register(ChatClient *client, char *nickname)
 {
     client->nickname = nickname;
 
@@ -87,7 +87,7 @@ register_client(ChatClient *client, char *nickname)
 }
 
 void
-broadcast(char *from, char *message)
+clients_broadcast_message(char *from, char *message)
 {
     GString *relay_msg = g_string_new(from);
     g_string_append_printf(relay_msg, ": %s", message);
@@ -119,7 +119,7 @@ broadcast(char *from, char *message)
 }
 
 void
-end_connection(ChatClient *client)
+clients_end_session(ChatClient *client)
 {
     // send to all clients
     GString *quit_msg = g_string_new("<-- ");
@@ -161,7 +161,7 @@ end_connection(ChatClient *client)
     }
     pthread_mutex_unlock(&clients_lock);
 
-    print_client_num();
+    clients_print_total();
 
     g_string_free(quit_msg, TRUE);
     g_string_free(quit_msg_term, TRUE);

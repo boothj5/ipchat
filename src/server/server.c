@@ -31,21 +31,21 @@ void* connection_handler(void *data)
         // error
         if (read_size == -1) {
             perror("Error receiving on connection");
-            end_connection(client);
+            clients_end_session(client);
             g_string_free(stream, TRUE);
             break;
 
         // client closed
         } else if (read_size == 0) {
             printf("%s:%d - Client disconnected.\n", client->ip, client->port);
-            end_connection(client);
+            clients_end_session(client);
             g_string_free(stream, TRUE);
             break;
 
         // end session
         } else if (sessionend) {
             printf("%s:%d - QUIT: %s\n", client->ip, client->port, client->nickname);
-            end_connection(client);
+            clients_end_session(client);
             g_string_free(stream, TRUE);
             break;
 
@@ -56,7 +56,7 @@ void* connection_handler(void *data)
             nickname[stream->len - 6] = '\0';
 
             printf("%s:%d - NICK: %s\n", client->ip, client->port, nickname);
-            register_client(client, nickname);
+            clients_register(client, nickname);
             g_string_free(stream, TRUE);
 
         // message
@@ -66,7 +66,7 @@ void* connection_handler(void *data)
             incoming[stream->len - 6] = '\0';
 
             printf("%s:%d - RECV: %s\n", client->ip, client->port, incoming);
-            broadcast(client->nickname, incoming);
+            clients_broadcast_message(client->nickname, incoming);
             g_string_free(stream, TRUE);
             free(incoming);
         }
@@ -144,7 +144,7 @@ int main(int argc , char *argv[])
     }
     puts("Waiting for incoming connections...");
 
-    print_client_num();
+    clients_print_total();
 
     // connection accept loop
     while (1) {
@@ -167,7 +167,7 @@ int main(int argc , char *argv[])
             puts("Could not create thread.");
         }
 
-        print_client_num();
+        clients_print_total();
     }
 
     return 0;
