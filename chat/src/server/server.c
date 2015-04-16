@@ -31,6 +31,13 @@ ChatClient* client_new(struct sockaddr_in client_addr, int socket)
     return client;
 }
 
+void print_client_num(void)
+{
+    pthread_mutex_lock(&clients_lock);
+    printf("Connected clients: %d\n", g_slist_length(clients));
+    pthread_mutex_unlock(&clients_lock);
+}
+
 void register_client(ChatClient *client, char *nickname)
 {
     client->nickname = nickname;
@@ -136,8 +143,9 @@ void end_connection(ChatClient *client)
         }
         curr = g_slist_next(curr);
     }
-    printf("Connected clients: %d\n", g_slist_length(clients));
     pthread_mutex_unlock(&clients_lock);
+
+    print_client_num();
 
     g_string_free(quit_msg, TRUE);
     g_string_free(quit_msg_term, TRUE);
@@ -284,9 +292,7 @@ int main(int argc , char *argv[])
     }
     puts("Waiting for incoming connections...");
 
-    pthread_mutex_lock(&clients_lock);
-    printf("Connected clients: %d\n", g_slist_length(clients));
-    pthread_mutex_unlock(&clients_lock);
+    print_client_num();
 
     // connection accept loop
     while (1) {
@@ -311,9 +317,7 @@ int main(int argc , char *argv[])
             puts("Could not create thread.");
         }
 
-        pthread_mutex_lock(&clients_lock);
-        printf("Connected clients: %d\n", g_slist_length(clients));
-        pthread_mutex_unlock(&clients_lock);
+        print_client_num();
     }
 
     return 0;
