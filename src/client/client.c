@@ -158,7 +158,7 @@ main(int argc, char *argv[])
 
     // register
     GString *reg_msg = g_string_new(nickname);
-    g_string_append(reg_msg, STR_MESSAGE_END);
+    g_string_append(reg_msg, STR_REGISTER_END);
     int sent = 0;
     int to_send = reg_msg->len;
     char *marker = reg_msg->str;

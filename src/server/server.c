@@ -18,14 +18,15 @@ void* connection_handler(void *data)
         memset(buf, 0, sizeof(buf));
 
         // listen to client stream
-        gboolean term = FALSE;
+        proto_term_t action = PROTO_UNDEFINED;
         gboolean sessionend = FALSE;
         GString *stream = g_string_new("");
         errno = 0;
-        while (!term && !sessionend && ((read_size = recv(client->sock, buf, 1, 0)) > 0)) {
+        while ((action == PROTO_UNDEFINED) && !sessionend && ((read_size = recv(client->sock, buf, 1, 0)) > 0)) {
             g_string_append_len(stream, buf, read_size);
-            if (g_str_has_suffix(stream->str, STR_MESSAGE_END)) term = TRUE;
-            if (g_str_has_suffix(stream->str, STR_SESSION_END)) sessionend = TRUE;
+            if (g_str_has_suffix(stream->str, STR_REGISTER_END)) action = PROTO_REGISTER;
+            if (g_str_has_suffix(stream->str, STR_MESSAGE_END)) action = PROTO_MESSAGE;
+            if (g_str_has_suffix(stream->str, STR_SESSION_END)) action = PROTO_CLOSE;
             memset(buf, 0, sizeof(buf));
         }
 
@@ -44,24 +45,24 @@ void* connection_handler(void *data)
             break;
 
         // end session
-        } else if (sessionend) {
+        } else if (action == PROTO_CLOSE) {
             printf("%s:%d - EXIT: %s\n", client->ip, client->port, client->nickname);
             clients_end_session(client);
             g_string_free(stream, TRUE);
             break;
 
         // registration
-        } else if (!client->nickname) {
-            char *nickname = malloc(stream->len - (strlen(STR_MESSAGE_END) -1));
-            strncpy(nickname, stream->str, stream->len - strlen(STR_MESSAGE_END));
-            nickname[stream->len - strlen(STR_MESSAGE_END)] = '\0';
+        } else if (action == PROTO_REGISTER) {
+            char *nickname = malloc(stream->len - (strlen(STR_REGISTER_END) -1));
+            strncpy(nickname, stream->str, stream->len - strlen(STR_REGISTER_END));
+            nickname[stream->len - strlen(STR_REGISTER_END)] = '\0';
 
             printf("%s:%d - JOIN: %s\n", client->ip, client->port, nickname);
             clients_register(client, nickname);
             g_string_free(stream, TRUE);
 
         // message
-        } else {
+        } else if (action == PROTO_MESSAGE) {
             char *incoming = malloc(stream->len -  (strlen(STR_MESSAGE_END) -1));
             strncpy(incoming, stream->str, stream->len - strlen(STR_MESSAGE_END));
             incoming[stream->len - strlen(STR_MESSAGE_END)] = '\0';
@@ -70,6 +71,12 @@ void* connection_handler(void *data)
             clients_broadcast_message(client->nickname, incoming);
             g_string_free(stream, TRUE);
             free(incoming);
+
+        } else {
+            printf("Unknown protocol action.");
+            clients_end_session(client);
+            g_string_free(stream, TRUE);
+            break;
         }
     }
 
