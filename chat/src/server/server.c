@@ -32,8 +32,32 @@ ChatClient* client_new(struct sockaddr_in client_addr, int socket)
 
 void end_connection(ChatClient *client)
 {
+    // send to all clients
+    GString *quit_msg = g_string_new("<-- ");
+    g_string_append(quit_msg, client->nickname);
+    g_string_append(quit_msg, " has left the conversation.");
+
+    GString *quit_msg_term = g_string_new(quit_msg->str);
+    g_string_append(quit_msg_term, "MSGEND");
+
     pthread_mutex_lock(&clients_lock);
     GSList *curr = clients;
+    while (curr != NULL) {
+        ChatClient *participant = curr->data;
+        printf("%s:%d - SEND: %s\n", participant->ip, participant->port, quit_msg->str);
+
+        int sent = 0;
+        int to_send = strlen(quit_msg_term->str);
+        char *marker = quit_msg_term->str;
+        while (to_send > 0 && ((sent = write(participant->sock, marker, to_send)) > 0)) {
+            to_send -= sent;
+            marker += sent;
+        }
+
+        curr = g_slist_next(curr);
+    }
+
+    curr = clients;
     while (curr != NULL) {
         if (curr->data == client) {
             clients = g_slist_remove_link(clients, curr);
@@ -48,6 +72,9 @@ void end_connection(ChatClient *client)
     }
     printf("Connected clients: %d\n", g_slist_length(clients));
     pthread_mutex_unlock(&clients_lock);
+
+    g_string_free(quit_msg, TRUE);
+    g_string_free(quit_msg_term, TRUE);
 }
 
 void* connection_handler(void *data)
@@ -75,51 +102,22 @@ void* connection_handler(void *data)
         // error
         if (read_size == -1) {
             perror("Error receiving on connection");
-            g_string_free(stream, TRUE);
             end_connection(client);
+            g_string_free(stream, TRUE);
             break;
 
         // client closed
         } else if (read_size == 0) {
             printf("%s:%d - Client disconnected.\n", client->ip, client->port);
-            g_string_free(stream, TRUE);
             end_connection(client);
+            g_string_free(stream, TRUE);
             break;
 
         // end session
         } else if (sessionend) {
             printf("%s:%d - QUIT: %s\n", client->ip, client->port, client->nickname);
-            fflush(stdout);
-
-            // send to all clients
-            GString *quit_msg = g_string_new("<-- ");
-            g_string_append(quit_msg, client->nickname);
-            g_string_append(quit_msg, " has left the conversation.");
-
-            GString *quit_msg_term = g_string_new(quit_msg->str);
-            g_string_append(quit_msg_term, "MSGEND");
-
-            pthread_mutex_lock(&clients_lock);
-            GSList *curr = clients;
-            while (curr != NULL) {
-                ChatClient *participant = curr->data;
-                printf("%s:%d - SEND: %s\n", participant->ip, participant->port, quit_msg->str);
-
-                int sent = 0;
-                int to_send = strlen(quit_msg_term->str);
-                char *marker = quit_msg_term->str;
-                while (to_send > 0 && ((sent = write(participant->sock, marker, to_send)) > 0)) {
-                    to_send -= sent;
-                    marker += sent;
-                }
-
-                curr = g_slist_next(curr);
-            }
-            pthread_mutex_unlock(&clients_lock);
-            g_string_free(stream, TRUE);
-            g_string_free(quit_msg, TRUE);
-            g_string_free(quit_msg_term, TRUE);
             end_connection(client);
+            g_string_free(stream, TRUE);
             break;
 
         // registration
