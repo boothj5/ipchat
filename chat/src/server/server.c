@@ -18,6 +18,7 @@ typedef struct thread_client_t {
 GSList *clients;
 
 pthread_mutex_t clients_lock;
+pthread_mutexattr_t lock_attr;
 
 ChatClient* client_new(struct sockaddr_in client_addr, int socket)
 {
@@ -28,6 +29,71 @@ ChatClient* client_new(struct sockaddr_in client_addr, int socket)
     client->nickname = NULL;
 
     return client;
+}
+
+void register_client(ChatClient *client, char *nickname)
+{
+    client->nickname = nickname;
+
+    // send to all clients
+    GString *reg_msg = g_string_new("--> ");
+    g_string_append(reg_msg, nickname);
+    g_string_append(reg_msg, " has joined the conversation.");
+
+    GString *reg_msg_term = g_string_new(reg_msg->str);
+    g_string_append(reg_msg_term, "MSGEND");
+
+    pthread_mutex_lock(&clients_lock);
+    GSList *curr = clients;
+    while (curr != NULL) {
+        ChatClient *participant = curr->data;
+        printf("%s:%d - SEND: %s\n", participant->ip, participant->port, reg_msg->str);
+
+        int sent = 0;
+        int to_send = strlen(reg_msg_term->str);
+        char *marker = reg_msg_term->str;
+        while (to_send > 0 && ((sent = write(participant->sock, marker, to_send)) > 0)) {
+            to_send -= sent;
+            marker += sent;
+        }
+
+        curr = g_slist_next(curr);
+    }
+    pthread_mutex_unlock(&clients_lock);
+
+    g_string_free(reg_msg, TRUE);
+    g_string_free(reg_msg_term, TRUE);
+}
+
+void broadcast(char *from, char *message)
+{
+    GString *relay_msg = g_string_new(from);
+    g_string_append_printf(relay_msg, ": %s", message);
+
+    GString *relay_msg_term = g_string_new(relay_msg->str);
+    g_string_append(relay_msg_term, "MSGEND");
+
+    // send to all clients
+    pthread_mutex_lock(&clients_lock);
+    GSList *curr = clients;
+    while (curr != NULL) {
+        ChatClient *participant = curr->data;
+        printf("%s:%d - SEND: %s\n", participant->ip, participant->port, relay_msg->str);
+
+        int sent = 0;
+        int to_send = strlen(relay_msg_term->str);
+        char *marker = relay_msg_term->str;
+        while (to_send > 0 && ((sent = write(participant->sock, marker, to_send)) > 0)) {
+            to_send -= sent;
+            marker += sent;
+        }
+
+        curr = g_slist_next(curr);
+    }
+    pthread_mutex_unlock(&clients_lock);
+
+    g_string_free(relay_msg, TRUE);
+    g_string_free(relay_msg_term, TRUE);
 }
 
 void end_connection(ChatClient *client)
@@ -125,39 +191,10 @@ void* connection_handler(void *data)
             char *nickname = malloc(stream->len -  5);
             strncpy(nickname, stream->str, stream->len - 6);
             nickname[stream->len - 6] = '\0';
-            client->nickname = nickname;
 
             printf("%s:%d - NICK: %s\n", client->ip, client->port, nickname);
-            fflush(stdout);
-
-            // send to all clients
-            GString *reg_msg = g_string_new("--> ");
-            g_string_append(reg_msg, nickname);
-            g_string_append(reg_msg, " has joined the conversation.");
-
-            GString *reg_msg_term = g_string_new(reg_msg->str);
-            g_string_append(reg_msg_term, "MSGEND");
-
-            pthread_mutex_lock(&clients_lock);
-            GSList *curr = clients;
-            while (curr != NULL) {
-                ChatClient *participant = curr->data;
-                printf("%s:%d - SEND: %s\n", participant->ip, participant->port, reg_msg->str);
-
-                int sent = 0;
-                int to_send = strlen(reg_msg_term->str);
-                char *marker = reg_msg_term->str;
-                while (to_send > 0 && ((sent = write(participant->sock, marker, to_send)) > 0)) {
-                    to_send -= sent;
-                    marker += sent;
-                }
-
-                curr = g_slist_next(curr);
-            }
-            pthread_mutex_unlock(&clients_lock);
+            register_client(client, nickname);
             g_string_free(stream, TRUE);
-            g_string_free(reg_msg, TRUE);
-            g_string_free(reg_msg_term, TRUE);
 
         // message
         } else {
@@ -166,36 +203,9 @@ void* connection_handler(void *data)
             incoming[stream->len - 6] = '\0';
 
             printf("%s:%d - RECV: %s\n", client->ip, client->port, incoming);
-            fflush(stdout);
-
-            GString *relay_msg = g_string_new(client->nickname);
-            g_string_append_printf(relay_msg, ": %s", incoming);
-
-            GString *relay_msg_term = g_string_new(relay_msg->str);
-            g_string_append(relay_msg_term, "MSGEND");
-
-            // send to all clients
-            pthread_mutex_lock(&clients_lock);
-            GSList *curr = clients;
-            while (curr != NULL) {
-                ChatClient *participant = curr->data;
-                printf("%s:%d - SEND: %s\n", participant->ip, participant->port, relay_msg->str);
-
-                int sent = 0;
-                int to_send = strlen(relay_msg_term->str);
-                char *marker = relay_msg_term->str;
-                while (to_send > 0 && ((sent = write(participant->sock, marker, to_send)) > 0)) {
-                    to_send -= sent;
-                    marker += sent;
-                }
-
-                curr = g_slist_next(curr);
-            }
-            pthread_mutex_unlock(&clients_lock);
-            free(incoming);
+            broadcast(client->nickname, incoming);
             g_string_free(stream, TRUE);
-            g_string_free(relay_msg, TRUE);
-            g_string_free(relay_msg_term, TRUE);
+            free(incoming);
         }
     }
 
@@ -240,6 +250,11 @@ int main(int argc , char *argv[])
 
     printf("Starting on port: %d...\n", port);
 
+    // initialise recursive mutex
+    pthread_mutexattr_init(&lock_attr);
+    pthread_mutexattr_settype(&lock_attr, PTHREAD_MUTEX_RECURSIVE);
+    pthread_mutex_init(&clients_lock, &lock_attr);
+
     // create socket
     errno = 0;
     listen_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_IP); // ipv4, tcp, ip
@@ -273,10 +288,8 @@ int main(int argc , char *argv[])
     printf("Connected clients: %d\n", g_slist_length(clients));
     pthread_mutex_unlock(&clients_lock);
 
-    // accept incoming client connections
+    // connection accept loop
     while (1) {
-
-        // listen for new connections
         c = sizeof(struct sockaddr_in);
         errno = 0;
         client_socket = accept(listen_socket, (struct sockaddr *)&client_addr, (socklen_t*)&c);
