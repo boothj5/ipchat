@@ -63,7 +63,7 @@ void* connection_handler(void *data)
 
         // message
         } else if (action == PROTO_MESSAGE) {
-            char *incoming = malloc(stream->len -  (strlen(STR_MESSAGE_END) -1));
+            char *incoming = malloc(stream->len - (strlen(STR_MESSAGE_END) -1));
             strncpy(incoming, stream->str, stream->len - strlen(STR_MESSAGE_END));
             incoming[stream->len - strlen(STR_MESSAGE_END)] = '\0';
 

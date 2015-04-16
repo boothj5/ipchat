@@ -224,9 +224,9 @@ main(int argc, char *argv[])
             memset(buf, 0, sizeof(buf));
         }
         if (term) {
-            char *incoming = malloc(stream->len -  5);
-            strncpy(incoming, stream->str, stream->len - 6);
-            incoming[stream->len - 6] = '\0';
+            char *incoming = malloc(stream->len - (strlen(STR_MESSAGE_END) -1));
+            strncpy(incoming, stream->str, stream->len - strlen(STR_MESSAGE_END));
+            incoming[stream->len - strlen(STR_MESSAGE_END)] = '\0';
 
             wprintw(outw, "%s\n", incoming);
             wrefresh(outw);
