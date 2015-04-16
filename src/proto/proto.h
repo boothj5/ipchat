@@ -10,6 +10,6 @@ typedef enum {
     PROTO_MESSAGE,
     PROTO_CLOSE,
     PROTO_UNDEFINED
-} proto_term_t;
+} proto_action_t;
 
 #endif

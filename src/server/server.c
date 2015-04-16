@@ -18,7 +18,7 @@ void* connection_handler(void *data)
         memset(buf, 0, sizeof(buf));
 
         // listen to client stream
-        proto_term_t action = PROTO_UNDEFINED;
+        proto_action_t action = PROTO_UNDEFINED;
         gboolean sessionend = FALSE;
         GString *stream = g_string_new("");
         errno = 0;
