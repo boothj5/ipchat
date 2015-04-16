@@ -19,6 +19,10 @@ src/server/.dirstamp
 src/server/clients.o
 src/server/server.o
 src/stamp-h1
+src/proto/.deps/
+src/proto/.dirstamp
+src/proto/proto.o
+
 .codelite/
 ipchat.project
 ipchat.workspace

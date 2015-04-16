@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "clients.h"
+#include "server/clients.h"
 #include "proto/proto.h"
 
 void* connection_handler(void *data)
@@ -24,9 +24,7 @@ void* connection_handler(void *data)
         errno = 0;
         while ((action == PROTO_UNDEFINED) && !sessionend && ((read_size = recv(client->sock, buf, 1, 0)) > 0)) {
             g_string_append_len(stream, buf, read_size);
-            if (g_str_has_suffix(stream->str, STR_REGISTER_END)) action = PROTO_REGISTER;
-            if (g_str_has_suffix(stream->str, STR_MESSAGE_END)) action = PROTO_MESSAGE;
-            if (g_str_has_suffix(stream->str, STR_SESSION_END)) action = PROTO_CLOSE;
+            action = proto_get_action(stream->str);
             memset(buf, 0, sizeof(buf));
         }
 

@@ -12,4 +12,6 @@ typedef enum {
     PROTO_UNDEFINED
 } proto_action_t;
 
+proto_action_t proto_get_action(char *stream);
+
 #endif

@@ -7,7 +7,7 @@
 #include <unistd.h>
 #include <glib.h>
 
-#include "clients.h"
+#include "server/clients.h"
 #include "proto/proto.h"
 
 GSList *clients;
