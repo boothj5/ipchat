@@ -23,3 +23,4 @@ chat/src/server/.deps/
 chat/src/server/.dirstamp
 chat/src/server/server.o
 chat/src/stamp-h1
+chat/src/server/clients.o
