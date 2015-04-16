@@ -67,7 +67,7 @@ void* connection_handler(void *data)
             strncpy(incoming, stream->str, stream->len - strlen(STR_MESSAGE_END));
             incoming[stream->len - strlen(STR_MESSAGE_END)] = '\0';
 
-            printf("%s:%d - RECV: %s\n", client->ip, client->port, incoming);
+            printf("%s:%d - RECV: %s: %s\n", client->ip, client->port, client->nickname, incoming);
             clients_broadcast_message(client->nickname, incoming);
             g_string_free(stream, TRUE);
             free(incoming);
