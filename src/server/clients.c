@@ -8,11 +8,35 @@
 #include <glib.h>
 
 #include "clients.h"
+#include "proto/proto.h"
 
 GSList *clients;
 
 pthread_mutex_t clients_lock;
 pthread_mutexattr_t lock_attr;
+
+void _broadcast_message(char *message)
+{
+    GString *msg_term = g_string_new(message);
+    g_string_append(msg_term, STR_MESSAGE_END);
+
+    pthread_mutex_lock(&clients_lock);
+    GSList *curr = clients;
+    while (curr != NULL) {
+        ChatClient *participant = curr->data;
+        int sent = 0;
+        int to_send = strlen(msg_term->str);
+        char *marker = msg_term->str;
+        while (to_send > 0 && ((sent = write(participant->sock, marker, to_send)) > 0)) {
+            to_send -= sent;
+            marker += sent;
+        }
+        curr = g_slist_next(curr);
+    }
+    pthread_mutex_unlock(&clients_lock);
+
+    g_string_free(msg_term, TRUE);
+}
 
 void
 clients_init(void)
@@ -56,97 +80,40 @@ clients_register(ChatClient *client, char *nickname)
 {
     client->nickname = nickname;
 
-    // send to all clients
-    GString *reg_msg = g_string_new("--> ");
-    g_string_append(reg_msg, nickname);
-    g_string_append(reg_msg, " has joined the conversation.");
+    GString *msg = g_string_new("--> ");
+    g_string_append(msg, nickname);
+    g_string_append(msg, " has joined the conversation.");
 
-    GString *reg_msg_term = g_string_new(reg_msg->str);
-    g_string_append(reg_msg_term, "MSGEND");
+    _broadcast_message(msg->str);
 
-    pthread_mutex_lock(&clients_lock);
-    GSList *curr = clients;
-    while (curr != NULL) {
-        ChatClient *participant = curr->data;
-        printf("%s:%d - SEND: %s\n", participant->ip, participant->port, reg_msg->str);
-
-        int sent = 0;
-        int to_send = strlen(reg_msg_term->str);
-        char *marker = reg_msg_term->str;
-        while (to_send > 0 && ((sent = write(participant->sock, marker, to_send)) > 0)) {
-            to_send -= sent;
-            marker += sent;
-        }
-
-        curr = g_slist_next(curr);
-    }
-    pthread_mutex_unlock(&clients_lock);
-
-    g_string_free(reg_msg, TRUE);
-    g_string_free(reg_msg_term, TRUE);
+    g_string_free(msg, TRUE);
 }
 
 void
 clients_broadcast_message(char *from, char *message)
 {
-    GString *relay_msg = g_string_new(from);
-    g_string_append_printf(relay_msg, ": %s", message);
+    GString *msg = g_string_new(from);
+    g_string_append_printf(msg, ": %s", message);
 
-    GString *relay_msg_term = g_string_new(relay_msg->str);
-    g_string_append(relay_msg_term, "MSGEND");
+    _broadcast_message(msg->str);
 
-    // send to all clients
-    pthread_mutex_lock(&clients_lock);
-    GSList *curr = clients;
-    while (curr != NULL) {
-        ChatClient *participant = curr->data;
-        printf("%s:%d - SEND: %s\n", participant->ip, participant->port, relay_msg->str);
-
-        int sent = 0;
-        int to_send = strlen(relay_msg_term->str);
-        char *marker = relay_msg_term->str;
-        while (to_send > 0 && ((sent = write(participant->sock, marker, to_send)) > 0)) {
-            to_send -= sent;
-            marker += sent;
-        }
-
-        curr = g_slist_next(curr);
-    }
-    pthread_mutex_unlock(&clients_lock);
-
-    g_string_free(relay_msg, TRUE);
-    g_string_free(relay_msg_term, TRUE);
+    g_string_free(msg, TRUE);
 }
 
 void
 clients_end_session(ChatClient *client)
 {
     // send to all clients
-    GString *quit_msg = g_string_new("<-- ");
-    g_string_append(quit_msg, client->nickname);
-    g_string_append(quit_msg, " has left the conversation.");
+    GString *msg = g_string_new("<-- ");
+    g_string_append(msg, client->nickname);
+    g_string_append(msg, " has left the conversation.");
 
-    GString *quit_msg_term = g_string_new(quit_msg->str);
-    g_string_append(quit_msg_term, "MSGEND");
+    _broadcast_message(msg->str);
+
+    g_string_free(msg, TRUE);
 
     pthread_mutex_lock(&clients_lock);
     GSList *curr = clients;
-    while (curr != NULL) {
-        ChatClient *participant = curr->data;
-        printf("%s:%d - SEND: %s\n", participant->ip, participant->port, quit_msg->str);
-
-        int sent = 0;
-        int to_send = strlen(quit_msg_term->str);
-        char *marker = quit_msg_term->str;
-        while (to_send > 0 && ((sent = write(participant->sock, marker, to_send)) > 0)) {
-            to_send -= sent;
-            marker += sent;
-        }
-
-        curr = g_slist_next(curr);
-    }
-
-    curr = clients;
     while (curr != NULL) {
         if (curr->data == client) {
             clients = g_slist_remove_link(clients, curr);
@@ -162,7 +129,4 @@ clients_end_session(ChatClient *client)
     pthread_mutex_unlock(&clients_lock);
 
     clients_print_total();
-
-    g_string_free(quit_msg, TRUE);
-    g_string_free(quit_msg_term, TRUE);
 }

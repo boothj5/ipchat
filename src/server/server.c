@@ -5,6 +5,7 @@
 #include <stdlib.h>
 
 #include "clients.h"
+#include "proto/proto.h"
 
 void* connection_handler(void *data)
 {
@@ -16,15 +17,15 @@ void* connection_handler(void *data)
         char buf[2];
         memset(buf, 0, sizeof(buf));
 
-        // listen for from client
+        // listen to client stream
         gboolean term = FALSE;
         gboolean sessionend = FALSE;
         GString *stream = g_string_new("");
         errno = 0;
         while (!term && !sessionend && ((read_size = recv(client->sock, buf, 1, 0)) > 0)) {
             g_string_append_len(stream, buf, read_size);
-            if (g_str_has_suffix(stream->str, "MSGEND")) term = TRUE;
-            if (g_str_has_suffix(stream->str, "SESSIONEND")) sessionend = TRUE;
+            if (g_str_has_suffix(stream->str, STR_MESSAGE_END)) term = TRUE;
+            if (g_str_has_suffix(stream->str, STR_SESSION_END)) sessionend = TRUE;
             memset(buf, 0, sizeof(buf));
         }
 
@@ -44,26 +45,26 @@ void* connection_handler(void *data)
 
         // end session
         } else if (sessionend) {
-            printf("%s:%d - QUIT: %s\n", client->ip, client->port, client->nickname);
+            printf("%s:%d - EXIT: %s\n", client->ip, client->port, client->nickname);
             clients_end_session(client);
             g_string_free(stream, TRUE);
             break;
 
         // registration
         } else if (!client->nickname) {
-            char *nickname = malloc(stream->len -  5);
-            strncpy(nickname, stream->str, stream->len - 6);
-            nickname[stream->len - 6] = '\0';
+            char *nickname = malloc(stream->len - (strlen(STR_MESSAGE_END) -1));
+            strncpy(nickname, stream->str, stream->len - strlen(STR_MESSAGE_END));
+            nickname[stream->len - strlen(STR_MESSAGE_END)] = '\0';
 
-            printf("%s:%d - NICK: %s\n", client->ip, client->port, nickname);
+            printf("%s:%d - JOIN: %s\n", client->ip, client->port, nickname);
             clients_register(client, nickname);
             g_string_free(stream, TRUE);
 
         // message
         } else {
-            char *incoming = malloc(stream->len -  5);
-            strncpy(incoming, stream->str, stream->len - 6);
-            incoming[stream->len - 6] = '\0';
+            char *incoming = malloc(stream->len -  (strlen(STR_MESSAGE_END) -1));
+            strncpy(incoming, stream->str, stream->len - strlen(STR_MESSAGE_END));
+            incoming[stream->len - strlen(STR_MESSAGE_END)] = '\0';
 
             printf("%s:%d - RECV: %s\n", client->ip, client->port, incoming);
             clients_broadcast_message(client->nickname, incoming);

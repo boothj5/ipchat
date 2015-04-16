@@ -16,6 +16,8 @@
 #include <fcntl.h>
 #include <glib.h>
 
+#include "proto/proto.h"
+
 int
 main(int argc, char *argv[])
 {
@@ -156,7 +158,7 @@ main(int argc, char *argv[])
 
     // register
     GString *reg_msg = g_string_new(nickname);
-    g_string_append(reg_msg, "MSGEND");
+    g_string_append(reg_msg, STR_MESSAGE_END);
     int sent = 0;
     int to_send = reg_msg->len;
     char *marker = reg_msg->str;
@@ -179,7 +181,7 @@ main(int argc, char *argv[])
 
                 // quit
                 if (strcmp(input, "/quit") == 0) {
-                    char *end_session_msg = "SESSIONEND";
+                    char *end_session_msg = STR_SESSION_END;
                     int sent = 0;
                     int to_send = strlen(end_session_msg);
                     char *marker = end_session_msg;
@@ -192,7 +194,7 @@ main(int argc, char *argv[])
                 // send message
                 } else if (strlen(input) > 0) {
                     GString *terminated_msg = g_string_new("");
-                    g_string_append_printf(terminated_msg, "%sMSGEND", input);
+                    g_string_append_printf(terminated_msg, "%s%s", input, STR_MESSAGE_END);
                     wrefresh(outw);
                     int sent = 0;
                     int to_send = terminated_msg->len;
@@ -218,7 +220,7 @@ main(int argc, char *argv[])
         GString *stream = g_string_new("");
         while (!term && ((read_size = recv(srv_socket, buf, 1, MSG_DONTWAIT)) > 0)) {
             g_string_append_len(stream, buf, read_size);
-            if (g_str_has_suffix(stream->str, "MSGEND")) term = TRUE;
+            if (g_str_has_suffix(stream->str, STR_MESSAGE_END)) term = TRUE;
             memset(buf, 0, sizeof(buf));
         }
         if (term) {
