@@ -19,10 +19,9 @@ void* connection_handler(void *data)
 
         // listen to client stream
         proto_action_t action = PROTO_UNDEFINED;
-        gboolean sessionend = FALSE;
         GString *stream = g_string_new("");
         errno = 0;
-        while ((action == PROTO_UNDEFINED) && !sessionend && ((read_size = recv(client->sock, buf, 1, 0)) > 0)) {
+        while ((action == PROTO_UNDEFINED) && ((read_size = recv(client->sock, buf, 1, 0)) > 0)) {
             g_string_append_len(stream, buf, read_size);
             action = proto_get_action(stream->str);
             memset(buf, 0, sizeof(buf));
