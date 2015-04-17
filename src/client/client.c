@@ -111,8 +111,12 @@ main(int argc, char *argv[])
 
     int rows, cols;
     getmaxyx(stdscr, rows, cols);
-    WINDOW *outw = newwin(rows - 2, cols, 0, 0);
+
+    WINDOW *outw = newwin(rows - 3, cols, 0, 0);
     scrollok(outw, TRUE);
+
+    WINDOW *nickw = newwin(1, cols, rows - 3, 0);
+
     WINDOW *inpw = newwin(2, cols, rows - 2, 0);
     scrollok(inpw, TRUE);
     wtimeout(inpw, 20);
@@ -167,6 +171,9 @@ main(int argc, char *argv[])
         marker += sent;
     }
     g_string_free(reg_msg, TRUE);
+
+    wprintw(nickw, "+%s", nickname);
+    wrefresh(nickw);
 
     // main loop
     char input[1000];
